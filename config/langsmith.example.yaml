@@ -1,0 +1,5 @@
+enabled: false
+endpoint: https://api.smith.langchain.com
+web_url: https://smith.langchain.com
+project: soc-local
+annotation_queue_id: null

@@ -1,0 +1,7 @@
+NODE: render_response
+功能/协议/标准支持允许正常英文表达，由独立语义核验检查含义；不要为了逐字复述 Support 或功能名称而生硬拼接。parameter_values 仅承载真实指标或等级。
+参数应答必须给出 assessments.parameter_values 的产品实际值及适用条件，再说明与要求值的关系；禁止只写 meets/supports 或用要求阈值替换实际值。不得将最大能力表述为本次已供货配置。
+response_en 只返回英文能力正文，不写来源文件名、版本、页码或 Sources/References 段。引用来源由程序根据已核验的 evidence_refs 生成，模型不负责来源格式。
+仅根据核验通过的 Claim 与证据撰写正式英文 SOC 口径。完整列出 addressed_claim_ids。PC 对每个未满足 Claim 提供明确英文 gap_sentences，不能淡化缺口。不得引入未证明的数字、型号、数量、项目配置、许可或承诺。不得省略必要条件。
+FC 优先用一句简短英文："[product_id] supports [direct capability and actual value with necessary conditions]." product_id 使用当前任务型号。多项或复杂条件可以用必要分句，完整性优先于句数；不逐条复述长原文或堆砌证据摘录。
+PC 简述已经支持的部分；每个缺口在 gap_sentences 明确写出，系统会统一追加 Not met，正文不要重复该列表。NC 固定口径、UNKNOWN 不生成正式肯定应答，由程序分支处理。

@@ -1,0 +1,46 @@
+/* Shared Laura visual tokens and live conversation primitives. */
+:root{--conversation-sidebar-width:216px;--blue:#245fe8;--line:#e5e7eb;--muted:#6b7280;--ink:#20242b;--paper:#fff;--sidebar:#f7f8fa;font-family:"Segoe UI","Microsoft YaHei UI","PingFang SC",system-ui,sans-serif;color:var(--ink);background:#f7f8fa;font-size:15px}
+body,.ant-app{font-family:inherit}button,input,textarea,select{font-family:inherit}body{color:var(--ink)}.panel{box-shadow:none;border-radius:10px}.page-heading h1{font-size:26px;letter-spacing:-.4px}.page-heading p{color:var(--muted)}.conversation-sidebar{padding:18px 12px;gap:14px}.conversation-sidebar button{font-size:13px}.conversation-message{margin:24px 0 28px}.conversation-message.from-assistant{padding:0 4px}.conversation-message-label{color:var(--muted);margin-bottom:8px}.conversation-message.from-user{background:#f0f1f3;padding:10px 18px;border-radius:16px}.conversation-result{padding:4px 0}.response-sources{margin-top:14px;color:var(--muted);gap:6px}.response-sources strong{font-weight:500}.response-sources button{border-radius:4px;font-size:12px}.response-actions{display:flex;gap:6px;align-items:center;margin-top:8px;color:var(--muted)}.response-collapsed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:8;overflow:hidden}.response-usage{font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}.laura-activity{font-size:14px;color:var(--muted);margin:10px 0}.activity-heading{display:flex;gap:10px;align-items:center}.activity-heading .ant-btn{margin-left:auto}.activity-steps{list-style:none;margin:12px 0;padding:0 0 0 12px;border-left:1px solid var(--line);display:grid;gap:9px}.activity-steps li{display:flex;gap:10px;align-items:center}.activity-steps small{margin-left:auto;font-variant-numeric:tabular-nums}.activity-steps .anticon-check{color:#268567}.context-window{width:min(296px,calc(100vw - 64px));font-size:13px;color:var(--ink);padding:4px}.context-heading,.context-category{display:flex;justify-content:space-between;align-items:center;gap:12px}.context-heading{font-size:14px}.context-heading>span{font-size:12px;color:var(--muted)}.context-window p{font-size:12px;line-height:1.6;color:var(--muted);margin:8px 0 12px}.context-meter{height:4px;display:flex;background:#f0f1f3;border-radius:3px;overflow:hidden;margin:12px 0}.context-meter i{height:100%;background:#245fe8}.context-meter i+i{background:#a7c1f8}.context-category{margin:8px 0;font-size:13px;font-variant-numeric:tabular-nums}.context-category>span:first-child{display:flex;gap:8px;align-items:center}.context-category i{width:7px;height:7px;border-radius:50%;background:#245fe8}.context-category.reserve i{background:#a7c1f8}.context-window .ant-btn{margin-top:8px;background:#f7f8fa}.context-disabled-reason{display:block;text-align:center;margin-top:6px;font-size:11px}.conversation-composer-dock{background:linear-gradient(transparent,#f7f8fa 20%)}.conversation-composer{border-radius:18px;box-shadow:0 3px 18px #20242b06}.conversation-composer textarea{font-size:16px;min-height:68px}.conversation-workspace{max-width:880px}.ant-table{font-variant-numeric:tabular-nums}.ant-table-cell{line-height:1.7}.ant-form-item-explain,.ant-form-item-extra{font-size:12px}.ant-drawer-body{line-height:1.75}.ant-btn:focus-visible,.response-sources button:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+@media(max-width:700px){.context-window{width:min(296px,calc(100vw - 64px))}.conversation-message.from-assistant{padding:0}.conversation-message.from-user{max-width:94%}.conversation-composer textarea{min-height:60px}.page-heading h1{font-size:23px}.response-sources button{min-height:32px}.response-actions .ant-btn{min-width:36px;min-height:36px}}
+
+/* Reply utilities stay quiet until an older answer is revisited. */
+.reply-copy-meta{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;transition:opacity .12s ease}
+.reply-copy-meta .ant-btn{color:inherit;min-width:30px;min-height:30px;border-radius:6px}
+.reply-copy-meta time{font-variant-numeric:tabular-nums;white-space:nowrap}
+.historical-reply .reply-copy-meta{opacity:0;pointer-events:none}
+.historical-reply:hover .reply-copy-meta,.historical-reply:focus-within .reply-copy-meta{opacity:1;pointer-events:auto}
+@media(hover:none),(pointer:coarse){.historical-reply .reply-copy-meta{opacity:1;pointer-events:auto}}
+@media(prefers-reduced-motion:reduce){.reply-copy-meta{transition:none}}
+
+/* Compact Laura reply header and reserve room for the connection indicator. */
+.conversation-workspace .conversation-message-label{margin-bottom:4px}
+.conversation-workspace .laura-activity{margin:4px 0 8px}
+.conversation-workspace .run-summary-toggle{padding:4px 0;margin-bottom:8px;border-radius:0}
+.conversation-workspace .conversation-composer-dock{padding-bottom:30px}
+.conversation-workspace .conversation-thread{padding-bottom:300px}
+@media(max-width:700px){.conversation-workspace .conversation-composer-dock{padding-bottom:28px}.conversation-workspace .conversation-thread{padding-bottom:330px}}
+
+/* Composer: metadata above, attachment left, context and mode right. */
+.composer-context-bar{display:flex;align-items:center;gap:8px;margin:0 6px 9px;min-width:0}
+.composer-context-bar>.project-selector{max-width:38%;flex-shrink:1}
+.composer-context-bar>.ant-select{width:auto;min-width:140px;max-width:60%;flex-shrink:1}
+.composer-context-bar .ant-select-selector{border:0!important;background:transparent!important;box-shadow:none!important;font-size:12px!important}
+.conversation-workspace .conversation-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px}
+.conversation-workspace .composer-controls-left{display:flex;flex:0 0 auto;min-width:32px}
+.conversation-workspace .composer-controls-right{display:flex;flex:0 0 auto;align-items:center;gap:8px;flex-wrap:nowrap;margin-left:auto}
+.conversation-workspace .composer-controls-left>.ant-btn{width:36px;height:36px;padding:0;border-radius:50%;color:#626a76}
+.conversation-workspace .composer-mode{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-radius:8px;color:#626a76;font-size:14px}
+.composer-mode .mode-chevron{font-size:10px;color:#9097a2}.mode-check-space{display:inline-block;width:14px}
+.context-ring-trigger{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0!important;flex:0 0 32px;border:0!important;box-shadow:none!important;background:transparent!important;border-radius:50%;color:#8b919a}
+.context-ring-trigger:hover{background:#f2f4f7!important}.context-ring-trigger svg{display:block;width:18px;height:18px}.context-ring-trigger:focus-visible{outline:2px solid #245fe8;outline-offset:2px}
+@media(max-width:700px){.composer-context-bar{gap:4px;margin:0 2px 7px}.composer-context-bar>.project-selector{max-width:42%;padding:6px 2px}.composer-context-bar>.ant-select{max-width:58%;min-width:0;flex:1}.composer-context-bar .ant-select-selection-item{font-size:11px}.conversation-workspace .composer-controls-right{gap:5px}.conversation-workspace .composer-mode{padding:0 5px}.conversation-workspace .conversation-composer textarea{max-height:35dvh}}
+
+.composer-mode-option{display:inline-flex;align-items:center;justify-content:space-between;gap:18px;min-width:70px}.composer-mode-option>.anticon{color:#245fe8;font-size:12px}
+
+/* Refinement: preserve readable controls and source rows at every viewport. */
+.conversation-composer-dock{background:#fff}.composer-context-bar,.composer-context-bar .ant-select-selector,.composer-context-bar .ant-select{background:#fff!important}
+.response-sources{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:5px!important}.response-sources>button{display:block;text-align:left;white-space:normal;overflow-wrap:anywhere;max-width:100%}
+.reply-copy-meta{display:inline-flex;align-items:center;gap:8px}.response-review-link{cursor:pointer}.response-review-link:focus-visible{outline:2px solid #155eef;outline-offset:3px}
+.historical-reply .response-actions{opacity:0;transition:opacity .15s}.historical-reply:hover .response-actions,.historical-reply:focus-within .response-actions{opacity:1}
+@media(hover:none),(pointer:coarse){.historical-reply .response-actions{opacity:1}}
+body table td,body .ant-table-wrapper .ant-table-tbody>tr>td{vertical-align:middle}td .actions{align-items:center}td{overflow-wrap:anywhere}

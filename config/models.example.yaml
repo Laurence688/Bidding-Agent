@@ -1,0 +1,50 @@
+config_version: '1'
+providers:
+  primary:
+    provider: deepseek
+    base_url: ''
+    model_id: ''
+    api_key_env: DEEPSEEK_API_KEY
+    api_protocol: chat_completions
+    timeout: 90
+    max_output_tokens: 4096
+    context_limit: 32000
+    structured_output_mode: json_object
+    structured_thinking: disabled
+    sdk_max_retries: 0
+  backup:
+    provider: doubao
+    base_url: ''
+    model_id: ''
+    api_key_env: ARK_API_KEY
+    api_protocol: chat_completions
+    timeout: 90
+    max_output_tokens: 4096
+    context_limit: 32000
+    structured_output_mode: json_object
+    sdk_max_retries: 0
+active_generation_profile_id: null
+generation_profiles:
+  glm:
+    provider: glm
+    base_url: ''
+    model_id: ''
+    api_key_env: GLM_API_KEY
+    config_env_prefix: GLM
+    timeout: 180
+    max_output_tokens: 4096
+    context_limit: 200000
+    structured_output_mode: json_object
+    structured_thinking: disabled
+    sdk_max_retries: 0
+  internal:
+    provider: openai_compatible
+    base_url: ''
+    model_id: ''
+    api_key_env: INTERNAL_API_KEY
+    config_env_prefix: INTERNAL
+    timeout: 90
+    max_output_tokens: 4096
+    context_limit: 32000
+    structured_output_mode: json_object
+    sdk_max_retries: 0

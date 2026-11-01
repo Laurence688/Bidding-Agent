@@ -1,0 +1,10 @@
+[
+  {
+    "id": "intro",
+    "path": "README.md",
+    "title": "安装与使用",
+    "scope": "current",
+    "order": 0,
+    "category": "product"
+  }
+]

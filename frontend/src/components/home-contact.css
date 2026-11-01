@@ -1,0 +1,6 @@
+.home-contact{display:flex;justify-content:center;margin-top:14px}
+.home-contact>.ant-btn{height:auto;min-height:36px;display:inline-flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;max-width:100%;padding:6px 10px;font-size:13px}
+.home-contact-address{color:#6b7280;overflow-wrap:anywhere}
+.home-contact-details{padding:4px 0 12px;line-height:1.8}
+.home-contact-details p{margin:0 0 18px;color:#6b7280}
+.home-contact-details>.ant-typography{font-size:16px;overflow-wrap:anywhere}

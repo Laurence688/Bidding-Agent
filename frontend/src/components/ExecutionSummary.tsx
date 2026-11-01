@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {Alert,Collapse,Tag,Timeline,Button} from 'antd';
+import {api,Data,label} from '../api/client';
+
+export default function ExecutionSummary({runId,clauseId,job,onRefresh}:{runId:string;clauseId?:string;job?:Data;onRefresh?:()=>void}){
+ const [open,setOpen]=useState(false),[data,setData]=useState<Data|null>(null),[error,setError]=useState('');
+ useEffect(()=>{setData(null);setError('');setOpen(false);},[runId,clauseId]);
+ useEffect(()=>{if(!open)return;let active=true;const load=()=>api(`/runs/${runId}/execution-summary${clauseId?'?clause_id='+encodeURIComponent(clauseId):''}`).then(v=>active&&setData(v)).catch(e=>active&&setError(e.message));void load();const timer=setInterval(load,3000);return()=>{active=false;clearInterval(timer);};},[open,runId,clauseId]);
+ return <div className="execution-summary"><Collapse activeKey={open?['process']:[]} onChange={keys=>setOpen(keys.includes('process'))} ghost items={[{key:'process',label:<span>处理过程 · 节点状态与实际耗时 {job?.status&&<Tag color={job.status==='failed'?'error':undefined}>{label(job.status)}</Tag>}</span>,children:<>{error&&<Alert type="error" title={error}/>}<p>仅展示执行摘要，不展示模型内部推理。</p>{data?<Timeline items={[...(data.nodes??[]).map((n:Data)=>({title:`${label(n.node_name)} · ${label(n.status)}`,content:`${n.elapsed_seconds==null?'耗时未知':Number(n.elapsed_seconds).toFixed(2)+' 秒'}`})),...(data.attempts??[]).map((a:Data)=>({title:`${label(a.logical_node_name)} · ${label(a.status)}`,content:<span>{a.model??'模型未记录'} · {a.latency==null?'耗时未知':`${Number(a.latency).toFixed(2)} 秒`} {a.error_code&&`· ${label(a.error_code)}`}</span>})),...(data.jobs??[]).map((j:Data)=>({title:`作业 · ${label(j.status)}`,content:label(j.current_node??j.stage??'')})),...(data.events??[]).map((e:Data)=>({title:`${e.created_at??''} · ${e.type}`,content:Object.entries(e.data??{}).map(([k,v])=>`${k}: ${label(String(v))}`).join(' · ')}))]}/>:<p>正在读取处理过程…</p>}{job?.status==='interrupted'&&<Button onClick={async()=>{await api(`/jobs/${job.id}/resume`,'POST',{expected_version:job.version});onRefresh?.();}}>恢复中断任务</Button>}</>} ]}/></div>;
+}

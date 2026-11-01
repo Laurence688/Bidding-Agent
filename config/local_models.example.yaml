@@ -1,0 +1,22 @@
+# Artifact identities are supplied only after actual verification; no implicit download.
+schema_version: 1
+active_manifest: null
+context_tokens: 8192
+threads: 4
+parallel: 1
+generation_timeout_seconds: 600
+# Local evidence-heavy nodes need room for the complete admitted references.
+# These caps apply only to local runs; cloud node policies stay unchanged.
+node_policies:
+  product_qa:
+    max_output_tokens: 2048
+  judge_claim:
+    max_output_tokens: 2048
+  verify_semantic_support:
+    max_output_tokens: 1024
+  render_response:
+    max_output_tokens: 2048
+idle_seconds: 600
+index_cache_entries: 2
+index_cache_bytes: 536870912
+release_accepted: false

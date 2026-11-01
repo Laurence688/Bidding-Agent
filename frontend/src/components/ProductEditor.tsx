@@ -1,0 +1,8 @@
+import {useEffect,useState} from 'react';
+import {Alert,Input,Modal,Select} from 'antd';
+import {api,Data} from '../api/client';
+export default function ProductEditor({open,product,onClose,onSaved}:{open:boolean;product?:Data;onClose:()=>void;onSaved:(p:Data)=>void|Promise<void>}){
+ const [family,setFamily]=useState(''),[name,setName]=useState(''),[aliases,setAliases]=useState<string[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{if(open){setFamily(product?.family??'');setName(product?.name??'');setAliases(product?.aliases??[]);setError('');}},[open,product?.id]);
+ return <Modal title={product?'编辑产品型号':'新增产品型号'} open={open} onCancel={onClose} confirmLoading={busy} okText={product?'保存产品':'创建产品'} cancelText="取消" okButtonProps={{disabled:!name.trim()}} onOk={async()=>{setBusy(true);setError('');try{const p=await api(product?`/kb/products/${product.id}`:'/kb/products',product?'PATCH':'POST',product?{expected_version:product.version,family:family.trim(),name:name.trim(),aliases}:{family:family.trim(),name:name.trim(),aliases});await onSaved(p);onClose();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><div className="kb-product-form"><label className="kb-field">产品家族<Input aria-label="产品家族" maxLength={100} value={family} onChange={e=>setFamily(e.target.value)}/></label><label className="kb-field">产品名称<Input aria-label="产品名称" value={name} onChange={e=>setName(e.target.value)}/></label><label className="kb-field">别名<Select aria-label="产品别名" mode="tags" tokenSeparators={[',','，']} value={aliases} onChange={setAliases} placeholder="输入别名后按回车"/></label>{error&&<Alert type="error" title={error}/>}</div></Modal>;
+}

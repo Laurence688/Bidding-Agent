@@ -1,0 +1,12 @@
+knowledge_root: data/knowledge/originals
+embedding_path: data/local-models/embedding
+embedding_device: cpu
+embedding_max_length: 1024
+embedding_batch_size: 4
+retrieval_top_k: 8
+rrf_k: 60
+allowed_origins:
+- http://127.0.0.1:8765
+- http://localhost:8765
+- http://127.0.0.1:5173
+- http://localhost:5173

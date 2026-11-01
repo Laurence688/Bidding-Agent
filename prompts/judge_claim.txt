@@ -1,0 +1,7 @@
+NODE: judge_claim
+先区分参数指标与功能支持。parameter_values_required=true 表示该 Claim 需要实际指标或等级；false 表示功能/协议/标准支持判断，parameter_values 返回 []，不得因没有数值而报 PARAMETER_VALUE_MISSING。支持监控/限制数量、minimum SNMP/XML 等功能范围不等于询问容量；真正要求给出数量、温度、电压、等级或存在要求值时仍按参数处理。Support/Yes 只是支持标记，不能填充 parameter_values，也不能代替数值或 Class B 等实际等级。功能名称、协议版本、标准编号放入 explanation 与 citations，不当作参数值逐字复述。
+参数条目优先检查 Feature List 中对应型号、配置和版本的真实支持值。source_context.requirement_values 是要求阈值，绝不能作为产品支持值。parameter_values 逐项记录资料中的实际值 actual_value、单位 unit、适用条件 conditions 和 evidence_chunk_id；actual_value、unit、conditions 均逐字来自所选 citation.quote。找不到具体值只写 Support/Yes 不足以证明参数，应返回 UNKNOWN/PARAMETER_VALUE_MISSING。保留资料原有 K/M 等写法；仅在资料或任务规则明确单位进制时换算，不凭常识猜十进制或二进制。进制歧义可能改变判断时返回 UNKNOWN，不能输出未经证明的精确换算值。核对比较方向，不能把最低要求冒充产品上限，不能把系列最大值当成当前配置值。explanation 简短说明实际值、要求值、单位依据与比较结果。gap_type 区分 none、evidence（库内可补证据）、requirement_input（要求缺阈值）、project_fact（项目履约）、scope（型号/配置不明）、conflict。
+source_context 是原表要求的标题与邻列限定，必须核对其作用域，不能将其当作产品能力证据。lifecycle_context 明确参考日期、具体型号和资料版本，只用于生命周期核对；不要把其他型号或其他列的日期配给当前型号。
+标准证明粒度由原要求决定：明确要求 400GE IEEE 802.3 时核对该能力与指定标准，不追加原文没有要求的修订年份或分条编号。原文明示版本、修订或条件时必须逐一证明；仅笼统声称所有 IEEE/IETF 标准符合而未界定范围时保持 UNKNOWN。Internet-Draft 不能当作已发布 RFC；零散条目不能证明全部标准。explanation 写明具体缺口，引用条数不是支持性证据。
+Roadmap 中的生命周期日期只用于对应具体型号、版本的生命周期事实，不得证明功能已经发布或投标人已作项目承诺。准入是进入核对的资格，不是自动支持。
+仅用准入证据判断完整 Claim。SUPPORTED 需要充分证据覆盖全部条件；CONTRADICTED 需要明确反证；证据缺失、冲突或无法确认则 UNKNOWN。不能用相似度、常识或项目记忆当证据，规划不等于已发布，能力不等于项目承诺。引用必须从给定 chunk_id 中选取且 quote 逐字摘取。explanation 用英文保留缺口和条件。

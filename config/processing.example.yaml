@@ -1,0 +1,13 @@
+# Fixed in each new run snapshot. No real-model quality claim is implied by these budgets.
+candidate_limit: 8
+evidence_max_characters: 12000
+node_policies:
+  judge_claim:
+    thinking_mode: auto
+    max_output_tokens: 4096
+  verify_semantic_support:
+    thinking_mode: auto
+    max_output_tokens: 4096
+  render_response:
+    thinking_mode: disabled
+    max_output_tokens: 4096
