@@ -5,6 +5,7 @@ import {ErrorNotice} from './Status';
 export default function GenerationAccess(){
  const [execution,setExecution]=useState<Data|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState<any>(null),[message,setMessage]=useState(''),[savedAllowed,setSavedAllowed]=useState<boolean|null>(null);
  useEffect(()=>{let alive=true;api('/settings/execution').then(value=>{if(alive){setExecution(value);setSavedAllowed(value.network_allowed);}}).catch(e=>{if(alive)setError(e);});return()=>{alive=false;};},[]);
+ useEffect(()=>{const updated=(event:Event)=>{const value=(event as CustomEvent).detail;setExecution(value);setSavedAllowed(value.network_allowed);};window.addEventListener('laura:execution-updated',updated);return()=>window.removeEventListener('laura:execution-updated',updated);},[]);
  const save=async()=>{
   if(!execution)return;
   setBusy(true);setError(null);setMessage('');

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "description": "Reviewed public usage/design documents and synthetic demonstration media only.",
+  "files": {
+    "doc/README.md": "bbbf7bae835915fd0bfeadb9dcd57ba5e5d08e42368b817c82a721bb7996758b",
+    "doc/00-使用指南/00-入门总览.md": "a7ae8165dfc0efa79d770965d82dcf4516d30ae6336bb28b135ead838a702fc5",
+    "doc/00-使用指南/01-模型准备.md": "649bc5d9db88b26222861297e5be16b7ccc3dce858363244aece36ab0d2faf48",
+    "doc/00-使用指南/02-项目与产品.md": "d28b6c7c559c0360ae7a1a2a75949c7f9fc7c19e6c402887aadbc2a4ec1b7ebc",
+    "doc/00-使用指南/03-构建知识库.md": "4a284f0f8466db71103786f6928e8c4c35b141ac1b2c4b662d15ee31695ca1b5",
+    "doc/00-使用指南/04-首次产品问答.md": "79bafb476ae35b5c27f404f08c55d1401a45689e18d30da8ff67a75e50b6a9fa",
+    "doc/00-使用指南/05-单条应标.md": "64a6710bbb00d06cd1a834cb1faa4706c92a1b9a7249c847d270d6e47caef098",
+    "doc/00-使用指南/06-Excel应标审核与导出.md": "7475c7527bb0debff60344b61792adf40ed2490b86571ecfcd84f24de459bcfb",
+    "doc/00-使用指南/07-单条翻译.md": "c858bc224044cf31ba4934baa75f7b409c2acdbe630b7b9d1186692ad5fa78f3",
+    "doc/00-使用指南/08-常见问题.md": "3d73e1e26b7b744370560dba961e3c0f33b4da144cb88a0cce03d0af2a758de6",
+    "doc/01-产品与路线/PRD.md": "f9cab77e39f4b3b777cbec12e704899283904878df55c9da672f0ff75eab1213",
+    "doc/02-架构与技术/架构设计.md": "2e0a7c589b197555a0651bbcab25c8bbbc2108001c9abcf829d246baee6cf97a",
+    "doc/02-架构与技术/RAG设计.md": "1bead0aaaf613b2395541dcccbc219cb98ea0f5a21e27f6750f82ae2d857ad7c",
+    "doc/02-架构与技术/技术栈选型.md": "a84a5fdcd617d8cda9def64bc583691a1d5cba3eb017fcb07cfba31518af014e",
+    "doc/03-界面与交互/界面与交互设计.md": "bac4e668f54343eca41f74373a1a56cb7d1c35ea221ac3af69cfda2848e77e74",
+    "doc/03-界面与交互/知识库来源类型与整篇保留策略设计.md": "18ea7281da7f651a537980e12cf3b2db36015924baad2e39ff93e91eafd765fb",
+    "doc/05-质量与验收/运行观测与评测.md": "b145e58f77c82a059de8a3170c2c831b2bade02c4e8cc4ca4806b9fd46e7493d",
+    "doc/catalog.json": "a05e83a5f97eaf7a6020139ab1a22e8b18f9fef85753456481ef2c1b3d9b706a",
+    "doc/assets/guides/kb-publish.png": "f932352f2deb51e7625c04d1edfb48ff03ffc2862f8ca8d60a62d49a522c7e14",
+    "doc/assets/guides/manifest.json": "1f977f871c052e76d47e7b1b3a14e56912fe53752fc09da4d0c88f0e30f6b2fe",
+    "frontend/public/media/laura-demo.mp4": "5b32319f654b45086f193d7bc79cd815966f4cad3a93ba2335532de141237a4c",
+    "frontend/public/media/laura-demo-poster.jpg": "a332b1ee25198dc64ecfd841bf2d9136b7a9990d5a3d8f2832c877720525376b"
+  }
+}

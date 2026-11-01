@@ -79,6 +79,9 @@ def save(settings,body):
                 else:provider[key]=value
             env[prefix+'_BASE_URL']=provider['base_url'];env[prefix+'_MODEL']=provider['model_id']
         if is_profiles or 'active_generation_profile_id' in body:
+            if is_profiles:
+                data['providers']['primary']=profiles['deepseek']
+                data['providers']['backup']=profiles['doubao']
             data['generation_profiles']={ident:profiles[ident] for ident in ['glm','internal']}
             selected=profiles[data.get('active_generation_profile_id') or 'glm']
             if data.get('active_generation_profile_id') and (not selected['base_url'] or not selected['model_id']):

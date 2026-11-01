@@ -136,8 +136,19 @@ def create_app(settings=None):
         return LibraryService(repo,settings).products()
 
     @app.get('/api/v1/projects')
-    def projects(cursor: str | None = None, limit: int = Query(50, ge=1, le=200)):
-        return records('project', cursor=cursor, limit=limit)
+    def projects(cursor: str | None = None, limit: int = Query(50, ge=1, le=200), scope: str = 'active'):
+        if scope not in {'active', 'trash'}:
+            raise DomainError('PROJECT_SCOPE_INVALID', '请选择正常项目或回收站', 422)
+        items = repo.list('project', after=cursor, limit=limit+1, trashed=scope=='trash')
+        return {'items': items[:limit], 'next_cursor': items[limit-1]['id'] if len(items)>limit else None}
+
+    @app.post('/api/v1/projects/{project_id}/trash')
+    def trash_project(project_id: str, body: VersionMutation):
+        return repo.set_project_trashed(project_id, body.expected_version, True)
+
+    @app.post('/api/v1/projects/{project_id}/restore')
+    def restore_project(project_id: str, body: VersionMutation):
+        return repo.set_project_trashed(project_id, body.expected_version, False)
 
     @app.post('/api/v1/projects', status_code=201)
     def create_project(body: ProjectCreate):
@@ -531,7 +542,7 @@ def create_app(settings=None):
     @app.post('/api/v1/settings/models/check')
     def check_model(body: dict):
         from app.model_gateway.endpoints import check_model_endpoint
-        return check_model_endpoint(settings,body.get('role'),body.get('profile_id'))
+        return check_model_endpoint(settings,body.get('role'),body.get('profile_id'),mode=body.get('mode','models'))
 
     @app.put('/api/v1/settings/models')
     def save_models(body: dict):

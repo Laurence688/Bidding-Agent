@@ -2,9 +2,127 @@
   {
     "id": "intro",
     "path": "README.md",
-    "title": "安装与使用",
+    "title": "Laura 文档中心",
     "scope": "current",
     "order": 0,
     "category": "product"
+  },
+  {
+    "path": "00-使用指南/00-入门总览.md",
+    "id": "public-1",
+    "title": "Laura 入门总览",
+    "scope": "current",
+    "order": 1
+  },
+  {
+    "path": "00-使用指南/01-模型准备.md",
+    "id": "public-2",
+    "title": "模型准备",
+    "scope": "current",
+    "order": 2
+  },
+  {
+    "path": "00-使用指南/02-项目与产品.md",
+    "id": "public-3",
+    "title": "项目与产品",
+    "scope": "current",
+    "order": 3
+  },
+  {
+    "path": "00-使用指南/03-构建知识库.md",
+    "id": "public-4",
+    "title": "构建知识库",
+    "scope": "current",
+    "order": 4
+  },
+  {
+    "path": "00-使用指南/04-首次产品问答.md",
+    "id": "public-5",
+    "title": "首次产品问答",
+    "scope": "current",
+    "order": 5
+  },
+  {
+    "path": "00-使用指南/05-单条应标.md",
+    "id": "public-6",
+    "title": "单条 SOC 应标",
+    "scope": "current",
+    "order": 6
+  },
+  {
+    "path": "00-使用指南/06-Excel应标审核与导出.md",
+    "id": "public-7",
+    "title": "Excel 应标、审核与导出",
+    "scope": "current",
+    "order": 7
+  },
+  {
+    "path": "00-使用指南/07-单条翻译.md",
+    "id": "public-8",
+    "title": "翻译与标书拆解",
+    "scope": "current",
+    "order": 8
+  },
+  {
+    "path": "00-使用指南/08-常见问题.md",
+    "id": "public-9",
+    "title": "常见问题",
+    "scope": "current",
+    "order": 9
+  },
+  {
+    "id": "prd",
+    "path": "01-产品与路线/PRD.md",
+    "title": "Laura 产品说明",
+    "scope": "current",
+    "order": 10,
+    "category": "product"
+  },
+  {
+    "id": "architecture",
+    "path": "02-架构与技术/架构设计.md",
+    "title": "架构设计",
+    "scope": "current",
+    "order": 11,
+    "category": "architecture"
+  },
+  {
+    "id": "rag",
+    "path": "02-架构与技术/RAG设计.md",
+    "title": "RAG 与证据设计",
+    "scope": "current",
+    "order": 12,
+    "category": "architecture"
+  },
+  {
+    "id": "stack",
+    "path": "02-架构与技术/技术栈选型.md",
+    "title": "技术栈与运行方式",
+    "scope": "current",
+    "order": 13,
+    "category": "architecture"
+  },
+  {
+    "id": "interaction-design",
+    "path": "03-界面与交互/界面与交互设计.md",
+    "title": "界面与交互说明",
+    "scope": "current",
+    "category": "product",
+    "order": 14
+  },
+  {
+    "path": "03-界面与交互/知识库来源类型与整篇保留策略设计.md",
+    "id": "public-15",
+    "title": "知识来源类型与整篇保留",
+    "scope": "current",
+    "order": 15
+  },
+  {
+    "id": "observability",
+    "path": "05-质量与验收/运行观测与评测.md",
+    "title": "运行观测与评测说明",
+    "scope": "current",
+    "order": 16,
+    "category": "observability"
   }
 ]

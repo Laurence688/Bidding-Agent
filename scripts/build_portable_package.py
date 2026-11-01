@@ -17,17 +17,32 @@ def safe_relative(name):
     return path
 
 
-def validate_source_names(names):
+def validate_source_names(names, approved_content=None):
+    if approved_content is None:
+        manifest=Path(__file__).resolve().parents[1]/'packaging/public-content.json'
+        approved_content=json.loads(manifest.read_text('utf-8')).get('files',{}) if manifest.exists() else {}
     for name in names:
         safe_relative(name)
         parts=PurePosixPath(name).parts
         if (parts[0] in {'data','outputs','docs','tests','.venv','.runtimes','.cache','.git'}
                 or 'node_modules' in parts or name.startswith('frontend/src/tests/')
-                or name.startswith('frontend/public/media/')
+                or (name.startswith('frontend/public/media/') and name not in approved_content)
                 or (parts[0].startswith('.env') and name!='.env.example')
                 or (name.startswith('config/') and not name.endswith('.example.yaml'))
-                or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'})):
+                or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'} and name not in approved_content)
+                or (name.startswith('doc/') and any(v in name for v in ('归档','上线修复记录','验收记录','问题记录','计划','工具/')))):
             raise ValueError('Private/development input is not allowed: '+name)
+
+
+def validate_public_models(models):
+    approved={'primary':('https://api.deepseek.com','deepseek-flash'),
+              'backup':('https://ark.cn-beijing.volces.com/api/v3','doubao-seed-2-1-pro-260915'),
+              'glm':('https://open.bigmodel.cn/api/paas/v4','glm-4.7-flash'),'internal':('','')}
+    for ident,provider in {**models['providers'],**models.get('generation_profiles',{})}.items():
+        if ident not in approved or (provider.get('base_url',''),provider.get('model_id','')) != approved[ident]:
+            raise ValueError('Only reviewed public presets and an empty internal profile may be published')
+        if any(provider.get(k) for k in ('key','api_key','token','secret')):
+            raise ValueError('Provider credentials are forbidden in public templates')
 
 
 def digest(path):
@@ -81,10 +96,13 @@ def prepare(args):
     if subprocess.check_output(['git','-C',str(source),'status','--porcelain','--untracked-files=all']).strip():
         raise ValueError('Commit the reviewed sanitized source before packaging')
     names=list(filter(None,subprocess.check_output(['git','-C',str(source),'ls-files','-z']).decode().split('\0')))
-    validate_source_names(names)
+    content_manifest=json.loads((source/'packaging/public-content.json').read_text('utf-8'))
+    validate_source_names(names,content_manifest['files'])
+    for name,expected in content_manifest['files'].items():
+        if name not in names:raise ValueError('Approved content is missing: '+name)
+        verify_hash(source/name,expected)
     models=yaml.safe_load((source/'config/models.example.yaml').read_text('utf-8'))
-    for provider in [*models['providers'].values(),*models.get('generation_profiles',{}).values()]:
-        if provider.get('base_url') or provider.get('model_id'):raise ValueError('Publish only blank provider templates')
+    validate_public_models(models)
     if yaml.safe_load((source/'config/products.example.yaml').read_text('utf-8'))!={'products':[]}:
         raise ValueError('Publish an empty product catalog')
     stage.mkdir(parents=True)
@@ -143,7 +161,7 @@ def prepare(args):
     shutil.copyfile(node/'LICENSE',stage/'licenses/Node-LICENSE.txt')
     config={'schema_version':1,'python':'3.11.17','node':'24.18.0','backend_preinstalled':True,'frontend_prebuilt':True}
     (stage/'laura-bundle.json').write_text(json.dumps(config,indent=2)+'\n','utf-8')
-    manifest={'schema_version':1,'version':'0.2.0-portable','source_commit':subprocess.check_output(['git','-C',str(source),'rev-parse','HEAD']).decode().strip(),'runtimes':{'python_archive_sha256':args.python_sha256,'node_archive_sha256':args.node_sha256},'files':[]}
+    manifest={'schema_version':1,'version':args.version,'source_commit':subprocess.check_output(['git','-C',str(source),'rev-parse','HEAD']).decode().strip(),'runtimes':{'python_archive_sha256':args.python_sha256,'node_archive_sha256':args.node_sha256},'files':[]}
     for file in sorted(stage.rglob('*')):
         if file.is_file():manifest['files'].append({'path':file.relative_to(stage).as_posix(),'size':file.stat().st_size,'sha256':digest(file)})
     (stage/'package-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),'utf-8')
@@ -157,6 +175,7 @@ def prepare(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--version',default='0.3.0-portable')
     for name in ('source','stage','output','python-archive','node-archive','wheelhouse'):
         parser.add_argument('--'+name,type=Path,required=True)
     for name in ('python-sha256','node-sha256'):parser.add_argument('--'+name,required=True)

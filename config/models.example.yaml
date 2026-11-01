@@ -2,8 +2,8 @@ config_version: '1'
 providers:
   primary:
     provider: deepseek
-    base_url: ''
-    model_id: ''
+    base_url: https://api.deepseek.com
+    model_id: deepseek-flash
     api_key_env: DEEPSEEK_API_KEY
     api_protocol: chat_completions
     timeout: 90
@@ -14,8 +14,8 @@ providers:
     sdk_max_retries: 0
   backup:
     provider: doubao
-    base_url: ''
-    model_id: ''
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    model_id: doubao-seed-2-1-pro-260915
     api_key_env: ARK_API_KEY
     api_protocol: chat_completions
     timeout: 90
@@ -23,12 +23,12 @@ providers:
     context_limit: 32000
     structured_output_mode: json_object
     sdk_max_retries: 0
-active_generation_profile_id: null
+active_generation_profile_id: deepseek
 generation_profiles:
   glm:
     provider: glm
-    base_url: ''
-    model_id: ''
+    base_url: https://open.bigmodel.cn/api/paas/v4
+    model_id: glm-4.7-flash
     api_key_env: GLM_API_KEY
     config_env_prefix: GLM
     timeout: 180

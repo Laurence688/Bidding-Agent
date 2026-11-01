@@ -8,16 +8,16 @@ IDS = ('glm', 'deepseek', 'doubao', 'internal')
 def factory_profiles():
     """Fresh release defaults, independent of local settings and environment overlays."""
     return {
-        'glm': {'provider':'glm','base_url':'',
-                'model_id':'','api_key_env':'GLM_API_KEY','config_env_prefix':'GLM',
+        'glm': {'provider':'glm','base_url':'https://open.bigmodel.cn/api/paas/v4',
+                'model_id':'glm-4.7-flash','api_key_env':'GLM_API_KEY','config_env_prefix':'GLM',
                 'timeout':180,'max_output_tokens':4096,'context_limit':200000,
                 'structured_output_mode':'json_object','structured_thinking':'disabled','sdk_max_retries':0},
-        'deepseek': {'provider':'deepseek','base_url':'',
-                'model_id':'','api_key_env':'DEEPSEEK_API_KEY','api_protocol':'chat_completions',
+        'deepseek': {'provider':'deepseek','base_url':'https://api.deepseek.com',
+                'model_id':'deepseek-flash','api_key_env':'DEEPSEEK_API_KEY','api_protocol':'chat_completions',
                 'timeout':90,'max_output_tokens':4096,'context_limit':32000,
                 'structured_output_mode':'json_object','structured_thinking':'disabled','sdk_max_retries':0},
-        'doubao': {'provider':'doubao','base_url':'',
-                'model_id':'','api_key_env':'ARK_API_KEY','api_protocol':'chat_completions',
+        'doubao': {'provider':'doubao','base_url':'https://ark.cn-beijing.volces.com/api/v3',
+                'model_id':'doubao-seed-2-1-pro-260915','api_key_env':'ARK_API_KEY','api_protocol':'chat_completions',
                 'timeout':90,'max_output_tokens':4096,'context_limit':32000,
                 'structured_output_mode':'json_object','sdk_max_retries':0},
         'internal': {'provider':'openai_compatible','base_url':'','model_id':'',
@@ -29,16 +29,19 @@ def factory_profiles():
 def profiles_for(models):
     defaults=factory_profiles()
     defaults.update(copy.deepcopy(models.get('generation_profiles', {})))
-    return {'glm':defaults['glm'],'deepseek':models['providers']['primary'],
-            'doubao':models['providers']['backup'],'internal':defaults['internal']}
+    result={'glm':defaults['glm'],'deepseek':copy.deepcopy(models['providers']['primary']),
+            'doubao':copy.deepcopy(models['providers']['backup']),'internal':defaults['internal']}
+    # Only completely empty public presets can be filled. Custom endpoints/IDs and
+    # environment overlays are never replaced or persisted by this read.
+    for ident in ('glm','deepseek','doubao'):
+        if not result[ident].get('base_url') and not result[ident].get('model_id'):
+            result[ident].update({k:factory_profiles()[ident][k] for k in ('base_url','model_id')})
+    return result
 
 
 def selected_models(models):
     ident=models.get('active_generation_profile_id')
     if ident is None:
-        primary=models.get('providers',{}).get('primary',{})
-        if not primary.get('base_url') or not primary.get('model_id'):
-            raise DomainError('MODEL_CONFIG_MISSING','请先配置并选择生成接口',409)
         return copy.deepcopy(models)
     if ident not in IDS:
         raise DomainError('MODEL_CONFIG_INVALID','生成供应商选择无效',422)

@@ -51,7 +51,7 @@ class DocumentTaskService:
 
     def enqueue(self, project_id, body, idempotency_key):
         body = DocumentTaskCreate.model_validate(body).model_dump()
-        self.repo.get('project', project_id)
+        self.repo.assert_project_active(project_id)
         if not body['confirmed']:
             raise DomainError('DOCUMENT_CONFIRM_REQUIRED', '请先确认处理范围、语言及所选 API 发送权限', 422)
         if body.get('session_id'):
@@ -187,6 +187,8 @@ class DocumentTaskService:
     def action(self, run_id, action):
         with self.repo.transaction():
             run = self._run(run_id)
+            if action != 'cancel':
+                self.repo.assert_project_active(run['project_id'])
             task = self.repo.get('task', run['task_id'], run['project_id'])
             job = self.repo.get('job', run['job_id'])
             if task['active_run_id'] != run_id:

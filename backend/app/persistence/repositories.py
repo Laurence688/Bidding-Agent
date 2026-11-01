@@ -68,6 +68,8 @@ class Repository:
         with self.transaction() as db:
             if project_id:
                 self.get('project', project_id)
+                if kind in {'session', 'task', 'run', 'job', 'file', 'input_snapshot'}:
+                    self.assert_project_active(project_id)
             db.execute('INSERT INTO records(id,kind,user_id,project_id,parent_id,data,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',
                        (ident, kind, self.local_user_id, project_id, parent_id, canonical(data), now, now))
         return self.get(kind, ident, project_id=project_id)
@@ -79,8 +81,11 @@ class Repository:
             raise DomainError('NOT_FOUND', '资源不存在或不属于当前项目', 404)
         return self.decode(row)
 
-    def list(self, kind, project_id=None, parent_id=None, after=None, limit=1000):
+    def list(self, kind, project_id=None, parent_id=None, after=None, limit=1000, trashed=False):
         sql, args = 'SELECT * FROM records WHERE kind=? AND user_id=? AND deleted=0', [kind, self.local_user_id]
+        if kind == 'project' and trashed is not None:
+            sql += " AND COALESCE(json_extract(data,'$.trashed'),0)=?"
+            args.append(int(trashed))
         for name, val in [('project_id', project_id), ('parent_id', parent_id)]:
             if val is not None:
                 sql += f' AND {name}=?'
@@ -108,7 +113,27 @@ class Repository:
         return self.put('project', {'name': name, 'default_product_id': product_id})
 
     def update_project(self, ident, expected_version, changes):
-        return self.update('project', ident, changes, expected_version)
+        with self.transaction():
+            self.assert_project_active(ident)
+            return self.update('project', ident, changes, expected_version)
+
+    def assert_project_active(self, ident):
+        project = self.get('project', ident)
+        if project.get('trashed'):
+            raise DomainError('PROJECT_TRASHED', '项目已在回收站，请先恢复项目后再操作', 409)
+        return project
+
+    def set_project_trashed(self, ident, expected_version, trashed):
+        with self.transaction():
+            project = self.get('project', ident)
+            if project['version'] != expected_version:
+                raise DomainError('VERSION_CONFLICT', '项目已更新，请刷新后重新操作', 409)
+            if trashed:
+                with self.connection() as db:
+                    busy = db.execute("SELECT 1 FROM records WHERE kind='job' AND project_id=? AND user_id=? AND deleted=0 AND json_extract(data,'$.status') IN ('queued','running') LIMIT 1", (ident, self.local_user_id)).fetchone()
+                if busy:
+                    raise DomainError('PROJECT_BUSY', '项目仍有排队或运行任务，请先在任务记录中处理后再移入回收站', 409)
+            return self.update('project', ident, {'trashed': trashed, 'trashed_at': utc_now() if trashed else None}, expected_version)
 
     def create_session(self, project_id, name=None):
         now = utc_now()
@@ -138,3 +163,4 @@ class Repository:
 
     def audit(self, project_id, action, data):
         return self.put('audit', {'action': action, 'details': data}, project_id)
+

@@ -49,7 +49,10 @@ def assert_endpoint_allowed(policy, endpoint, purpose):
     if is_local_endpoint(endpoint):
         return
     if policy.get('model_mode') != 'cloud' or policy.get('network_allowed') is not True:
-        raise DomainError('EXECUTION_OFFLINE', '当前运行模式或全局离线限制已阻止外部发送；任务与结果保留', 409)
+        message = '本次任务未向外部模型发送内容，已有任务与结果仍保留。请在文本模型设置中允许生成 API 联网。'
+        if policy.get('blocked_by_snapshot'):
+            message = '此任务创建时未允许联网，原配置快照仍受限制；请允许联网后重新创建任务。已有任务与结果仍保留。'
+        raise DomainError('EXECUTION_OFFLINE', message, 409)
     parsed = urlsplit(endpoint)
     for allowed in policy.get('allowed_services', {}).get(purpose, []):
         base = urlsplit(allowed)
@@ -64,6 +67,7 @@ def policy_for(settings, model_mode=None, frozen=None, extra_services=None):
     current = ExecutionSettings(settings.data_dir).view()
     if frozen is not None:
         result = copy.deepcopy(frozen)
+        result['blocked_by_snapshot'] = not bool(result.get('network_allowed')) and bool(current['network_allowed'])
         result['network_allowed'] = bool(result.get('network_allowed') and current['network_allowed'])
         return result
     mode = model_mode or current['model_mode']

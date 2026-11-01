@@ -1,0 +1,7 @@
+{
+  "phases": ["原始条目", "要求识别", "混合检索", "证据核验", "四态判定", "英文口径", "待人工审核"],
+  "clause": "设备应支持 IPv6 协议。",
+  "decision": "FC",
+  "answer": "The product supports IPv6.",
+  "source": "演示产品资料.docx"
+}

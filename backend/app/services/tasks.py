@@ -50,7 +50,7 @@ class TaskService:
         return self.repo.put('config_snapshot', {**payload, 'content_hash': content_hash(payload)})
 
     def enqueue(self, project_id, body, idempotency_key):
-        self.repo.get('project', project_id)
+        self.repo.assert_project_active(project_id)
         try:
             from app.services.libraries import LibraryService
             product = LibraryService(self.repo,self.settings).resolve_product(body.get('product_id'))
@@ -203,6 +203,8 @@ class TaskService:
     def resume(self, job_id, expected_version):
         with self.repo.transaction():
             job = self.repo.get('job', job_id)
+            if job.get('project_id'):
+                self.repo.assert_project_active(job['project_id'])
             if job['status'] != 'interrupted':
                 raise DomainError('JOB_STATE', '仅中断作业可恢复；修改事实请创建新运行', 409)
             if job.get('run_id'):
@@ -215,3 +217,4 @@ class TaskService:
                 self.repo.update('evaluation_run', job['evaluation_run_id'], {'status': 'queued'})
             self.repo.event(job_id, 'job.status', {'status': 'queued'})
             return result
+

@@ -146,7 +146,7 @@ class LibraryService(ProductCatalogService,LibraryWizardMixin,LibraryPurgeMixin)
             if ident.startswith('legacy:') and any(j.get('kind')=='knowledge' and j.get('product_id')==lib['product_id'] and j.get('status') in {'queued','running','cancelling'} for j in self.repo.list('job',limit=100000)):
                 raise DomainError('BUILD_STOP_REQUIRED','请先取消构建，等待 Worker 确认停止后再移至回收站',409)
             # Materialize compatibility defaults before removing this library so restore never rebinds.
-            for project in self.repo.list('project',limit=100000):
+            for project in self.repo.list('project',limit=100000,trashed=None):
                 binding=self.bindings(project['id'])
                 if ident in binding['library_ids']:
                     remaining=[i for i in binding['library_ids'] if i!=ident]

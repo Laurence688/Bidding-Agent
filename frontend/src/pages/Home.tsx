@@ -1,15 +1,19 @@
 import {useEffect,useRef,useState} from 'react';
 import {Button} from 'antd';
 import HomeContact from '../components/HomeContact';
-import {ArrowRightOutlined,DatabaseOutlined,FileDoneOutlined,ExperimentOutlined,TranslationOutlined,FileSearchOutlined} from '@ant-design/icons';
-
+import {ArrowRightOutlined,PauseOutlined,PlayCircleOutlined,ReloadOutlined,CloseOutlined,DatabaseOutlined,FileDoneOutlined,ExperimentOutlined,TranslationOutlined,FileSearchOutlined} from '@ant-design/icons';
+import demoData from '../demo/lanes.json';
 import './home-upgrade.css';
 
-const phases=['原始条目','要求识别','混合检索','证据核验','四态判定','英文口径','待人工审核'];
+const phases=demoData.phases;
+const DEMO_VIDEO='/media/laura-demo.mp4';
+const DEMO_POSTER='/media/laura-demo-poster.jpg';
 
 export default function Home({onNavigate}:{onNavigate:(page:string)=>void}){
  const host=useRef<HTMLElement>(null);
+ const videoRef=useRef<HTMLVideoElement>(null);
  const [visible,setVisible]=useState(true),[tabVisible,setTabVisible]=useState(!document.hidden),[reduced,setReduced]=useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+ const [demoOpen,setDemoOpen]=useState(false),[demoPaused,setDemoPaused]=useState(false),[demoEnded,setDemoEnded]=useState(false),[demoRun,setDemoRun]=useState(0);
 
  useEffect(()=>{
   const media=window.matchMedia('(prefers-reduced-motion: reduce)'),change=()=>setReduced(media.matches);
@@ -20,6 +24,42 @@ export default function Home({onNavigate}:{onNavigate:(page:string)=>void}){
   if(host.current)observer.observe(host.current);
   return()=>{media.removeEventListener('change',change);document.removeEventListener('visibilitychange',visibility);observer.disconnect();};
  },[]);
+
+ // 切换到后台时暂停放映，回到前台不自动续播。
+ useEffect(()=>{
+  if(!demoOpen)return;
+  const onVisibility=()=>{
+   if(document.hidden){videoRef.current?.pause();setDemoPaused(true);}
+  };
+  document.addEventListener('visibilitychange',onVisibility);
+  return()=>document.removeEventListener('visibilitychange',onVisibility);
+ },[demoOpen]);
+
+ useEffect(()=>{
+  if(!demoOpen)return;
+  const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')setDemoOpen(false);};
+  window.addEventListener('keydown',onKey);
+  return()=>window.removeEventListener('keydown',onKey);
+ },[demoOpen]);
+
+ const openDemo=()=>{setDemoPaused(false);setDemoEnded(false);setDemoRun(value=>value+1);setDemoOpen(true);};
+ const closeDemo=()=>{setDemoOpen(false);setDemoPaused(false);setDemoEnded(false);};
+ const toggleDemo=()=>{
+  const video=videoRef.current;
+  if(!video)return;
+  if(video.paused){setDemoEnded(false);setDemoPaused(false);void video.play().catch(()=>setDemoPaused(true));}
+  else{video.pause();setDemoPaused(true);}
+ };
+ const replayDemo=()=>{
+  const video=videoRef.current;
+  if(!video)return;
+  video.currentTime=0;
+  setDemoEnded(false);setDemoPaused(false);
+  void video.play().catch(()=>setDemoPaused(true));
+ };
+ const onEnded=()=>{setDemoEnded(true);setDemoPaused(true);};
+
+ const statusText=reduced?'减少动画模式 · 完整静态流程':demoEnded?'演示已结束':demoPaused?'已暂停':'正在演示：真实操作 Laura 从一条要求到最终口径';
 
  return <div className="laura-home">
   <section className="laura-hero">
@@ -76,7 +116,7 @@ export default function Home({onNavigate}:{onNavigate:(page:string)=>void}){
     </div>
     <div className="preview-bar">
      <p className="preview-note">合成示例 · 不代表真实任务或处理速度</p>
-     <button className="preview-play" onClick={()=>onNavigate('docs')} aria-label="查看使用流程"><i aria-hidden="true"/>查看使用流程</button>
+     <button className="preview-play" onClick={openDemo} aria-label="观看演示"><i aria-hidden="true"/>观看演示</button>
     </div>
    </section>
    <footer className="hero-foot">
@@ -84,11 +124,46 @@ export default function Home({onNavigate}:{onNavigate:(page:string)=>void}){
    </footer>
   </section>
 
+  {demoOpen&&<div className="demo-modal" role="dialog" aria-modal="true" aria-label="Laura 处理流程演示">
+   <button className="demo-modal-close" onClick={closeDemo} aria-label="关闭演示"><CloseOutlined aria-hidden="true"/></button>
+   <div className="demo-modal-inner">
+    <div className="demo-modal-head">
+     <p className="demo-modal-kicker">LAURA / 合成示例</p>
+     <h2>真实操作：从一条要求到最终口径</h2>
+     <p className="demo-modal-note">合成示例 · 不代表真实任务或处理速度</p>
+    </div>
+    <div className="demo-player">
+     <video
+      key={demoRun}
+      ref={videoRef}
+      className="demo-video"
+      src={DEMO_VIDEO}
+      poster={DEMO_POSTER}
+      autoPlay={!reduced}
+      muted
+      playsInline
+      preload="auto"
+      onEnded={onEnded}
+      onPlay={()=>setDemoPaused(false)}
+      onPause={()=>setDemoPaused(true)}
+     />
+     <p className="sr-only">演示录屏：{demoData.clause} 经拆分要求、检索资料、筛选适用证据、逐项判断与起草英文口径后，判定 {demoData.decision}，英文口径为 {demoData.answer}，来源 {demoData.source}，最终在应答审核台确认审核通过。</p>
+    </div>
+    <div className="demo-modal-foot">
+     <div className="demo-modal-controls">
+      <button className="demo-control" onClick={toggleDemo} disabled={reduced} aria-label={demoPaused?'继续动画':'暂停动画'}><span aria-hidden="true">{demoPaused?<PlayCircleOutlined/>:<PauseOutlined/>}</span>{demoPaused?'继续':'暂停'}</button>
+      <button className="demo-control" onClick={replayDemo} disabled={reduced} aria-label="重播动画"><span aria-hidden="true"><ReloadOutlined/></span>重播</button>
+     </div>
+     <p className="demo-status" aria-live="off">{statusText}</p>
+    </div>
+   </div>
+  </div>}
+
   <section className="home-values" id="laura-process">
    <p className="home-kicker">EVIDENCE / CONTROL / IMPROVEMENT</p>
    <h2>每一步都留有依据。</h2>
    <div>
-    {[[DatabaseOutlined,'专属知识，数据可控','构建个人项目知识库，本地管理资料与索引，结合语义与关键词检索查找依据，模型调用由你选择。'],[FileDoneOutlined,'单条批量，高效应答','从一条要求到整份 Excel，生成附带来源的应答；查阅已审核历史，减少重复查找与整理。'],[ExperimentOutlined,'过程可查，持续改进','全链观测、评测集构建与使用指南，让每次应答可追溯，让改进有据可循。']].map(([Icon,title,text])=>{
+    {[[DatabaseOutlined,'专属知识，数据可控','构建个人项目知识库，本地管理资料与索引，结合语义与关键词检索查找依据，模型调用由你选择。'],[FileDoneOutlined,'单条批量，高效应答','从一条要求到整份 Excel，生成附带来源的应答；查阅已审核历史，减少重复查找与整理。'],[ExperimentOutlined,'过程可查，持续改进','全链观测、评测集构建与设计文档开放阅读，让每次应答可追溯，让改进有据可循。']].map(([Icon,title,text])=>{
      const Mark=Icon as typeof DatabaseOutlined;
      return <article key={String(title)}><Mark/><h3>{String(title)}</h3><p>{String(text)}</p></article>;
     })}

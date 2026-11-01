@@ -39,3 +39,12 @@ Thumbs.db
 /doc/assets/
 *.mp4
 *.webm
+
+!/frontend/public/media/laura-demo.mp4
+!/frontend/public/media/laura-demo-poster.jpg
+!/doc/assets/
+!/doc/assets/guides/
+!/doc/assets/guides/kb-publish.png
+
+!/doc/assets/guides/manifest.json
+

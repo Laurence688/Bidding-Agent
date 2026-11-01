@@ -1,10 +1,11 @@
+import ProjectCreateDialog from './components/ProjectCreateDialog';
+import ProductEditor from './components/ProductEditor';
 import ConversationEntry from './components/ConversationEntry';
 import SidebarResizeHandle from './components/SidebarResizeHandle';
 import {useSidebarWidth} from './hooks/useSidebarWidth';
 import type {CSSProperties} from 'react';
 import SessionActionDialog from './components/SessionActionDialog';
 import KnowledgeBuildTracker from './components/KnowledgeBuildTracker';
-import {productLabel} from './components/knowledgeModel';
 import {useEffect,useRef,useState} from 'react';
 import {api,bootstrap,Data,displaySessionName} from './api/client';
 import {ErrorNotice} from './components/Status';
@@ -62,8 +63,8 @@ export default function App(){
  const sessionCache=useRef<Record<string,Data|null>>({});
  const [sessionDialog,setSessionDialog]=useState<{session:Data;remove:boolean}|null>(null);
  const [sessionSearch,setSessionSearch]=useState(''),[sessionBusy,setSessionBusy]=useState(false);
- const projectDialog=useRef<HTMLDialogElement>(null);
- useEffect(()=>{if(creatingProject){projectDialog.current?.showModal();projectDialog.current?.querySelector('input')?.focus();}},[creatingProject]);
+ const registerReturn=useRef<string|null>(null);
+ const registerProduct=()=>{registerReturn.current=page;setCreatingProject(false);navigate('libraries/products/new');};
  const drawer=useRef<HTMLDialogElement>(null),drawerClose=useRef<HTMLButtonElement>(null),creatingSession=useRef(false);
  const selectedProjectId=useRef(project?.id);selectedProjectId.current=project?.id;
  const navigationEpoch=useRef(0);
@@ -76,13 +77,13 @@ export default function App(){
   do{const result=await api(`/projects/${id}/sessions${cursor?'?cursor='+encodeURIComponent(cursor):''}`);items.push(...result.items);cursor=result.next_cursor??null;}while(cursor);
   return {items};
  };
- const refreshProjects=async()=>{const all:Data[]=[];let cursor:string|null=null;do{const result=await api('/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''));all.push(...result.items);cursor=result.next_cursor??null;}while(cursor);const list=all.filter((p:Data)=>!p.evaluation_only);setProjects(list);setProject(current=>list.find((p:Data)=>p.id===(current?.id??localStorage.getItem('soc-project')))||list[0]||null);};
+ const refreshProjects=async()=>{const all:Data[]=[];let cursor:string|null=null;do{const result=await api('/projects'+(cursor?'?cursor='+encodeURIComponent(cursor):''));all.push(...result.items);cursor=result.next_cursor??null;}while(cursor);const list=all.filter((p:Data)=>!p.evaluation_only);setProjects(list);const activeIds=new Set(list.map(p=>p.id));setWorkspaceVisits(old=>old.filter(v=>activeIds.has(v.project.id)));setDocumentVisits(old=>old.filter(v=>activeIds.has(v.project.id)));for(const id of Object.keys(sessionCache.current))if(!activeIds.has(id)){delete sessionCache.current[id];sessionStorage.removeItem('laura-session:'+id);}setProject(current=>list.find((p:Data)=>p.id===(current?.id??localStorage.getItem('soc-project')))||list[0]||null);};
 
  useEffect(()=>{refreshProductCatalog().then(()=>refreshProjects()).then(()=>setReady(true)).catch(setError);},[]);
  useEffect(()=>{setMobileOpen(false);},[page]);
  useEffect(()=>{
-  setSessions([]);setSessionSearch('');
-  if(!project)return;
+  setSessions([]);setSession(null);setSessionSearch('');
+  if(!project){localStorage.removeItem('soc-project');return;}
   let active=true;localStorage.setItem('soc-project',project.id);
   const remembered=sessionCache.current[project.id]?.id??sessionStorage.getItem('laura-session:'+project.id);
   loadSessions(project.id).then(data=>{if(active){setSessions(data.items);setSession(data.items.find((s:Data)=>s.id===remembered)||data.items[0]||null);}}).catch(e=>{if(active)setError(e);});
@@ -187,11 +188,11 @@ export default function App(){
     {!project&&page==='workspace'&&<div className="workspace-onboarding"><h1>欢迎使用 Laura</h1><p>创建项目，开始产品问答和投标应答。</p><button className="primary" onClick={()=>setCreatingProject(true)}>创建项目</button></div>}
 
     {documentVisits.map(v=>{const active=v.project.id===project?.id&&((v.mode==='TRANSLATION'&&page.split('?')[0]==='translation')||(v.mode==='TENDER_ANALYSIS'&&page.split('?')[0]==='tender-analysis'));const epoch=navigationEpoch.current;return <div key={v.key} hidden={!active}><DocumentTasks project={v.project} mode={v.mode} active={active} initialRunId={active?new URLSearchParams(page.split('?')[1]).get('run')??undefined:undefined} onRun={id=>{if(active&&selectedProjectId.current===v.project.id&&navigationEpoch.current===epoch&&activeDocumentKey.current===v.key)navigate(`${v.mode==='TRANSLATION'?'translation':'tender-analysis'}?run=${id}`);}}/></div>;})}
-    {page.startsWith('review')?<ReviewWorkbench project={project} products={products} route={page} onNavigate={navigate}/>:page.startsWith('logs')?<ExecutionLogs project={project} route={page} onNavigate={navigate}/>:page==='home'?<Home onNavigate={navigate}/>:page==='tools'?<Tools/>:page.startsWith('projects')?<Projects projects={projects} products={products} route={page} onNavigate={navigate} onChooseProject={chooseProject} onCreateProject={()=>setCreatingProject(true)} onProjectsChanged={refreshProjects}/>:page.startsWith('libraries')?<Libraries route={page} onNavigate={navigate} onBack={back} onProjectsChanged={refreshProjects} project={project} products={products} onProductsChanged={async()=>{await refreshProductCatalog();}}/>:page==='memories'?<Memories products={products} project={project} onTask={(id,runId)=>navigate(`task/${id}${runId?'?run='+runId:''}`)}/>:page==='embedding'?<EmbeddingSettings/>:page==='runtime'?<RuntimeSettings/>:page.startsWith('task/')?<TaskDetail taskId={page.slice(5).split('?')[0]} runId={new URLSearchParams(page.split('?')[1]).get('run')??undefined} products={products} onNavigate={navigate}/>:page.startsWith('observability')?<Observability key={project?.id} project={project} initialTaskId={page.split('/')[1]} onTask={(id,mode,runId)=>navigate(mode==='TRANSLATION'?`translation${runId?'?run='+runId:''}`:mode==='TENDER_ANALYSIS'?`tender-analysis${runId?'?run='+runId:''}`:`task/${id}${runId?'?run='+runId:''}`)}/>:page==='knowledge'?<Knowledge products={products}/>:page==='evaluation'?<Evaluation products={products}/>:page.startsWith('docs')?<Documents route={page} onNavigate={navigate} onBack={canGoBack?back:undefined}/>:page==='prompts'?<Prompts/>:page==='settings'?<Settings/>:null}
+    {page.startsWith('review')?<ReviewWorkbench project={project} products={products} route={page} onNavigate={navigate}/>:page.startsWith('logs')?<ExecutionLogs project={project} route={page} onNavigate={navigate}/>:page==='home'?<Home onNavigate={navigate}/>:page==='tools'?<Tools/>:page.startsWith('projects')?<Projects projects={projects} products={products} route={page} onNavigate={navigate} onChooseProject={chooseProject} onCreateProject={()=>setCreatingProject(true)} onProjectsChanged={refreshProjects}/>:page==='libraries/products/new'?<ProductEditor open onClose={()=>{const target=registerReturn.current;registerReturn.current=null;navigate(target??'libraries');if(target)setCreatingProject(true);}} onSaved={async p=>{await refreshProductCatalog();setProjectProduct(p.id);}}/>:page.startsWith('libraries')?<Libraries route={page} onNavigate={navigate} onBack={back} onProjectsChanged={refreshProjects} project={project} products={products} onProductsChanged={async()=>{await refreshProductCatalog();}}/>:page==='memories'?<Memories products={products} project={project} onTask={(id,runId)=>navigate(`task/${id}${runId?'?run='+runId:''}`)}/>:page==='embedding'?<EmbeddingSettings/>:page==='runtime'?<RuntimeSettings/>:page.startsWith('task/')?<TaskDetail taskId={page.slice(5).split('?')[0]} runId={new URLSearchParams(page.split('?')[1]).get('run')??undefined} products={products} onNavigate={navigate}/>:page.startsWith('observability')?<Observability key={project?.id} project={project} initialTaskId={page.split('/')[1]} onTask={(id,mode,runId)=>navigate(mode==='TRANSLATION'?`translation${runId?'?run='+runId:''}`:mode==='TENDER_ANALYSIS'?`tender-analysis${runId?'?run='+runId:''}`:`task/${id}${runId?'?run='+runId:''}`)}/>:page==='knowledge'?<Knowledge products={products}/>:page==='evaluation'?<Evaluation products={products}/>:page.startsWith('docs')?<Documents route={page} onNavigate={navigate} onBack={canGoBack?back:undefined}/>:page==='prompts'?<Prompts/>:page==='settings'?<Settings/>:null}
    </>}
   </main>{page!=='workspace'&&!page.startsWith('docs')&&<BackToTop/>}
   <span className="connection-status" title={healthLabel} role="status"><span className={`dot ${health==='running'?'online':''}`}/>{healthLabel}</span>
-  {creatingProject&&<dialog ref={projectDialog} onCancel={()=>setCreatingProject(false)} className="project-create-dialog"><form onSubmit={async e=>{e.preventDefault();try{const created=await api('/projects','POST',{name:projectName,default_product_id:projectProduct||products[0]?.id||''});await refreshProjects();navigationEpoch.current++;changePage('workspace',{reset:true,onCommit:()=>{setProject(created);setSession(null);setCreatingProject(false);setProjectName('');setMobileOpen(false);}});}catch(e){setError(e);}}}><h2>新建项目</h2><label>项目名称<input required maxLength={100} value={projectName} onChange={e=>setProjectName(e.target.value)}/></label><label>默认产品型号<select value={projectProduct||products[0]?.id||''} onChange={e=>setProjectProduct(e.target.value)}>{products.map(p=><option key={p.id} value={p.id}>{productLabel(p)}</option>)}</select></label><div className="actions"><button type="button" onClick={()=>setCreatingProject(false)}>取消</button><button className="primary">创建项目</button></div></form></dialog>}
+  {creatingProject&&<ProjectCreateDialog products={products} name={projectName} product={projectProduct} onName={setProjectName} onProduct={setProjectProduct} onClose={()=>setCreatingProject(false)} onRegister={registerProduct} onSubmit={async()=>{const created=await api('/projects','POST',{name:projectName.trim(),default_product_id:projectProduct||products[0]?.id||''});await refreshProjects();navigationEpoch.current++;changePage('workspace',{reset:true,onCommit:()=>{setProject(created);setSession(null);setCreatingProject(false);setProjectName('');setMobileOpen(false);}});}}/>}
 
  </div>;
 }
