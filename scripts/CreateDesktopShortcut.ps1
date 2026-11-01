@@ -19,7 +19,8 @@ if (Test-Path -LiteralPath $shortcutPath) {
 $shortcut = $shortcutShell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = $launcherPath
 $shortcut.WorkingDirectory = $projectRoot
-$shortcut.IconLocation = "$launcherPath,0"
+$iconPath = Join-Path $projectRoot 'packaging\desktop\laura.ico'
+$shortcut.IconLocation = if (Test-Path -LiteralPath $iconPath) { "$iconPath,0" } else { "$launcherPath,0" }
 $shortcut.Description = 'Launch Laura in your browser; close its pages to stop local services.'
 $shortcut.Save()
 Write-Host "Created $shortcutPath"
