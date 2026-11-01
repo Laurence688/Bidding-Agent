@@ -112,6 +112,9 @@ def prepare(args):
     hashed_lock.write_text('\n'.join(requirements)+'\n','utf-8')
     env={k:v for k,v in os.environ.items() if not k.startswith('PYTHON')}
     env.update(PYTHONNOUSERSITE='1',PYTHONUTF8='1',PYTHONDONTWRITEBYTECODE='1')
+    temporary=stage.parent/(stage.name+'-build-tmp')
+    temporary.mkdir(exist_ok=True)
+    env.update(TMP=str(temporary),TEMP=str(temporary))
     env.pop('NODE_OPTIONS',None)
     for key in list(env):
         if key.startswith('VITE_'):env.pop(key)
@@ -127,7 +130,7 @@ def prepare(args):
     shutil.copytree(source/'frontend/dist',stage/'frontend/dist')
     executable=str(python/'python.exe')
     print('Installing pinned backend wheels offline into clean Python',flush=True)
-    subprocess.run([executable,'-m','pip','--isolated','--disable-pip-version-check','install','--no-index','--no-deps','--no-compile','--require-hashes','--find-links',str(args.wheelhouse.resolve()),'-r',str(hashed_lock),'--target',str(python/'Lib/site-packages'),'--upgrade'],check=True,env=env,cwd=stage)
+    subprocess.run([executable,'-m','pip','--isolated','--disable-pip-version-check','install','--quiet','--no-index','--no-deps','--no-compile','--require-hashes','--find-links',str(args.wheelhouse.resolve()),'-r',str(hashed_lock),'--target',str(python/'Lib/site-packages'),'--upgrade'],check=True,env=env,cwd=stage)
     subprocess.run([executable,'-m','pip','check'],check=True,env=env,cwd=stage)
     for folder in [python/'Lib/site-packages/Scripts',python/'Scripts']:
         if folder.exists():
