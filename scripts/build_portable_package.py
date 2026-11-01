@@ -31,6 +31,8 @@ def validate_source_names(names, approved_content=None):
                 or (parts[0].startswith('.env') and name!='.env.example')
                 or (name.startswith('config/') and not name.endswith('.example.yaml'))
                 or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'} and name not in approved_content)
+                or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'}
+                    and parts[1] not in {'00-使用指南','01-产品与路线','02-架构与技术','03-界面与交互','assets'})
                 or (name.startswith('doc/') and any(v in name for v in ('归档','上线修复记录','验收记录','问题记录','工具/')))
                 # Only this reviewed current roadmap is public; historical and
                 # implementation plans remain forbidden even if listed by mistake.

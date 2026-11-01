@@ -5,7 +5,7 @@
     "title": "Laura 文档中心",
     "scope": "current",
     "order": 0,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/00-入门总览.md",
@@ -13,7 +13,7 @@
     "title": "入门总览",
     "scope": "guide",
     "order": 1,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/01-模型准备.md",
@@ -21,7 +21,7 @@
     "title": "模型准备",
     "scope": "guide",
     "order": 2,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/02-项目与产品.md",
@@ -29,7 +29,7 @@
     "title": "项目与产品",
     "scope": "guide",
     "order": 3,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/03-构建知识库.md",
@@ -37,7 +37,7 @@
     "title": "构建知识库",
     "scope": "guide",
     "order": 4,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/04-首次产品问答.md",
@@ -45,7 +45,7 @@
     "title": "首次产品问答",
     "scope": "guide",
     "order": 5,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/05-单条应标.md",
@@ -53,7 +53,7 @@
     "title": "单条应标",
     "scope": "guide",
     "order": 6,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/06-Excel应标审核与导出.md",
@@ -61,7 +61,7 @@
     "title": "Excel应标审核与导出",
     "scope": "guide",
     "order": 7,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/07-单条翻译.md",
@@ -69,7 +69,7 @@
     "title": "单条翻译",
     "scope": "guide",
     "order": 8,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "00-使用指南/08-常见问题.md",
@@ -77,7 +77,7 @@
     "title": "常见问题",
     "scope": "guide",
     "order": 9,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "01-产品与路线/PRD.md",
@@ -85,7 +85,7 @@
     "title": "SOC 投标助手产品需求文档",
     "scope": "current",
     "order": 10,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "01-产品与路线/计划书.md",
@@ -93,7 +93,7 @@
     "title": "SOC 投标助手当前计划与验收顺序",
     "scope": "current",
     "order": 11,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "02-架构与技术/RAG设计.md",
@@ -101,7 +101,7 @@
     "title": "RAG 设计",
     "scope": "current",
     "order": 12,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "02-架构与技术/技术栈选型.md",
@@ -109,7 +109,7 @@
     "title": "SOC 投标助手技术栈与配置",
     "scope": "current",
     "order": 13,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "02-架构与技术/架构设计.md",
@@ -117,7 +117,7 @@
     "title": "SOC 投标助手架构设计",
     "scope": "current",
     "order": 14,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "03-界面与交互/界面与交互设计.md",
@@ -125,7 +125,7 @@
     "title": "界面与交互说明",
     "scope": "current",
     "order": 15,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   },
   {
     "path": "03-界面与交互/知识库来源类型与整篇保留策略设计.md",
@@ -133,14 +133,6 @@
     "title": "知识来源类型与整篇保留",
     "scope": "current",
     "order": 16,
-    "publication_version": "v0.4.1"
-  },
-  {
-    "path": "05-质量与验收/运行观测与评测.md",
-    "id": "observability",
-    "title": "运行观测与评测说明",
-    "scope": "current",
-    "order": 17,
-    "publication_version": "v0.4.1"
+    "publication_version": "v0.4.2"
   }
 ]

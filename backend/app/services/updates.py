@@ -13,7 +13,7 @@ import httpx
 from app.security.configuration import atomic_write
 from app.services.update_download import UpdateDownloadError,discover_latest,download_release,safe_update_path,version_tuple
 
-APP_VERSION='0.4.1'
+APP_VERSION='0.4.2'
 
 
 class UpdateServiceError(Exception):
