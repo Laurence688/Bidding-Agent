@@ -5,7 +5,8 @@ import re
 import stat
 from urllib.parse import urljoin, urlsplit
 
-RELEASES_URL='https://api.github.com/repos/Laurence688/Bidding-Agent/releases?per_page=30'
+# Repository ID survives the verified Bidding-Agent -> Bid-Agent rename.
+RELEASES_URL='https://api.github.com/repositories/1440902300/releases?per_page=30'
 ASSET_NAME='Laura-Portable-Windows-x64.zip'
 MAX_ARCHIVE_BYTES=2*1024**3
 
@@ -42,7 +43,7 @@ def _download_url(value):
     if parsed.scheme!='https' or parsed.username or parsed.password or parsed.port not in (None,443):
         raise UpdateDownloadError('UPDATE_URL_DENIED','更新下载地址未通过校验')
     if parsed.hostname=='github.com':
-        valid=parsed.path.startswith('/Laurence688/Bidding-Agent/releases/download/')
+        valid=any(parsed.path.startswith('/Laurence688/'+name+'/releases/download/') for name in ('Bid-Agent','Bidding-Agent'))
     else:valid=parsed.hostname in {'release-assets.githubusercontent.com','objects.githubusercontent.com'}
     if not valid:raise UpdateDownloadError('UPDATE_URL_DENIED','更新下载地址未通过校验')
     return value
