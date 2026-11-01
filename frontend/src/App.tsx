@@ -167,7 +167,7 @@ export default function App(){
   <a className="skip-link" href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus();}}>跳到主要内容</a>
   {<header className="module-header">
 
-   <a className="brand" href="#home" aria-label="Laura 首页" onClick={e=>{e.preventDefault();navigate('home');}}><img src="/laura-mark.svg" width="32" height="32" alt=""/><span><b>Laura</b></span></a>
+   <a className="brand" href="#home" aria-label="Laura 首页" onClick={e=>{e.preventDefault();navigate('home');}}><img src="/laura-brand.png" width="32" height="32" alt=""/><span><b>Laura</b></span></a>
 
    <ProductNavigation page={page} onNavigate={navigate}/>
 

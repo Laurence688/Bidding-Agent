@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
@@ -43,6 +44,22 @@ def validate_public_models(models):
             raise ValueError('Only reviewed public presets and an empty internal profile may be published')
         if any(provider.get(k) for k in ('key','api_key','token','secret')):
             raise ValueError('Provider credentials are forbidden in public templates')
+
+
+def validate_public_branding(source, approved_content):
+    source=Path(source)
+    name='frontend/public/laura-brand.png'
+    icon=source/name
+    if name not in approved_content or not icon.is_file():
+        raise ValueError('The reviewed current Laura icon is missing')
+    verify_hash(icon,approved_content[name])
+    app=(source/'frontend/src/App.tsx').read_text('utf-8')
+    html=(source/'frontend/index.html').read_text('utf-8')
+    if not re.search(r'''<img\b[^>]*\bsrc=["']/laura-brand\.png["']''',app):
+        raise ValueError('The header must use the current Laura icon')
+    links=re.findall(r'''<link\b[^>]*\brel=["']icon["'][^>]*>''',html)
+    if not any('/laura-brand.png' in link for link in links):
+        raise ValueError('The favicon must use the current Laura icon')
 
 
 def digest(path):
@@ -101,6 +118,7 @@ def prepare(args):
     for name,expected in content_manifest['files'].items():
         if name not in names:raise ValueError('Approved content is missing: '+name)
         verify_hash(source/name,expected)
+    validate_public_branding(source,content_manifest['files'])
     models=yaml.safe_load((source/'config/models.example.yaml').read_text('utf-8'))
     validate_public_models(models)
     if yaml.safe_load((source/'config/products.example.yaml').read_text('utf-8'))!={'products':[]}:

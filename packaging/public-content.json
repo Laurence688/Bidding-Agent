@@ -2,6 +2,7 @@
   "schema_version": 1,
   "description": "Reviewed public usage/design documents and synthetic demonstration media only.",
   "files": {
+    "frontend/public/laura-brand.png": "eaf4f07037e1588fe040e707844710d36f2b619a7a8d6eb7a1ff1f05261d2054",
     "doc/README.md": "3abe8485a450fe243a45a291e1c542e742627cac069abfd470a07a8d51ae6227",
     "doc/00-使用指南/00-入门总览.md": "18f1e2d62c339522fa5afa2a94fc404126d57a7ca8d4505602cf3eae4dcf698f",
     "doc/00-使用指南/01-模型准备.md": "dd18470301c5425920d0e22fa2798e3918a0dc8aef71e00a33df393b4abf1b41",
