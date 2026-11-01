@@ -1,9 +1,263 @@
 {
+  "publication_version": "v0.4.0",
   "screenshots": [
+    {
+      "file": "excel-download.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "生成并下载正式结果"
+    },
+    {
+      "file": "excel-gate.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "查看正式导出条件"
+    },
+    {
+      "file": "excel-map.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "核对识别摘要与映射"
+    },
+    {
+      "file": "excel-process.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "确认后开始处理"
+    },
+    {
+      "file": "excel-review.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "逐条核对并审核"
+    },
+    {
+      "file": "excel-upload.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "上传待应标 Excel"
+    },
+    {
+      "file": "intro-open.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "首次打开 Laura"
+    },
+    {
+      "file": "kb-basic.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "填写知识库基础信息"
+    },
+    {
+      "file": "kb-bind-enable.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "绑定项目并确认启用"
+    },
+    {
+      "file": "kb-draft-exit.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "保存草稿并退出"
+    },
+    {
+      "file": "kb-draft-resume.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "继续创建草稿"
+    },
+    {
+      "file": "kb-excel-preview.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "检查 Excel 参数片段"
+    },
+    {
+      "file": "kb-excel-rule.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "配置 Excel 工作表与列范围"
+    },
+    {
+      "file": "kb-pdf-preview.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "检查 PDF 页码与正文"
+    },
+    {
+      "file": "kb-pdf-rule.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "配置 PDF 切分"
+    },
     {
       "file": "kb-publish.png",
       "demo": true,
-      "title": "合成演示：构建就绪后明确发布"
+      "publication_version": "v0.4.0",
+      "title": "查看构建结果并发布"
+    },
+    {
+      "file": "kb-purge.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "永久删除前确认"
+    },
+    {
+      "file": "kb-republish.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "重新构建后再次发布"
+    },
+    {
+      "file": "kb-search.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "检索本库检查候选资料"
+    },
+    {
+      "file": "kb-update.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "更新资料进入独立草稿"
+    },
+    {
+      "file": "kb-upload.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "选择来源类型并上传资料"
+    },
+    {
+      "file": "kb-vector-build.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "选择本地向量模型并确认构建"
+    },
+    {
+      "file": "kb-word-preview.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "检查 Word 切片"
+    },
+    {
+      "file": "kb-word-rule.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "配置 Word 切分"
+    },
+    {
+      "file": "model-active.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "设为当前接口"
+    },
+    {
+      "file": "model-check.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "校验已保存连接"
+    },
+    {
+      "file": "model-network.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "确认生成联网权限"
+    },
+    {
+      "file": "model-reset.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "恢复默认草稿"
+    },
+    {
+      "file": "model-save.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "保存文本模型接口"
+    },
+    {
+      "file": "model-vector.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "确认本地向量模型"
+    },
+    {
+      "file": "product-create.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "创建产品家族与名称"
+    },
+    {
+      "file": "project-create.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "新建项目并选产品"
+    },
+    {
+      "file": "project-session.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "建立会话"
+    },
+    {
+      "file": "qa-answer.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "阅读回答和来源"
+    },
+    {
+      "file": "qa-context.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "查看上下文预算"
+    },
+    {
+      "file": "qa-input.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "选择项目型号并提问"
+    },
+    {
+      "file": "qa-source.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "核对来源位置"
+    },
+    {
+      "file": "soc-input.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "提交单条技术要求"
+    },
+    {
+      "file": "soc-result.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "理解判定并核对证据"
+    },
+    {
+      "file": "soc-review.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "进入应答审核"
+    },
+    {
+      "file": "translation-input.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "选择翻译方向并输入文本"
+    },
+    {
+      "file": "translation-reference.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "引用已有回复继续翻译"
+    },
+    {
+      "file": "translation-result.png",
+      "demo": true,
+      "publication_version": "v0.4.0",
+      "title": "查看并复制译文"
     }
   ]
 }

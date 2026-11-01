@@ -93,8 +93,9 @@ def page_session_finished(status, initial_elapsed):
 
 
 class Browser:
-    def __init__(self, backend, focus, cancelled, emit):
+    def __init__(self, backend, focus, cancelled, emit, update_ready=None, update_failed=None):
         self.backend, self.focus, self.cancelled, self.emit = backend, focus, cancelled, emit
+        self.update_ready, self.update_failed = update_ready, update_failed
 
     def open(self, url):
         self.url = url
@@ -117,6 +118,23 @@ class Browser:
                 if failures >= 6:
                     raise RuntimeError('本地服务连接已中断，请重新启动 Laura。')
                 continue
+            update_token=status.get('update_token')
+            if update_token:
+                import re
+                if not isinstance(update_token,str) or not re.fullmatch('[a-f0-9]{32}',update_token):
+                    raise RuntimeError('更新请求格式无效，已阻止安装。')
+                self.emit('LAURA_UPDATE:'+update_token)
+                if self.update_ready is None:
+                    return
+                deadline=time.monotonic()+100
+                while not self.cancelled.wait(.2):
+                    if self.update_ready.is_set():return
+                    if self.update_failed.is_set():
+                        self.update_failed.clear()
+                        break
+                    if time.monotonic()>deadline:
+                        raise RuntimeError('更新组件未能确认启动，请重新打开Laura；原资料保留。')
+                continue
             if page_session_finished(status, time.monotonic() - started):
                 return
 
@@ -135,17 +153,22 @@ def main():
     os.chdir(root)
     sys.path.insert(0, str(root / 'backend'))
     focus, cancelled = threading.Event(), threading.Event()
+    update_ready, update_failed = threading.Event(), threading.Event()
     def commands():
         for line in sys.stdin:
             if line.strip() == 'FOCUS':
                 focus.set()
             elif line.strip() == 'CLOSE':
                 cancelled.set()
+            elif line.strip() == 'UPDATE_READY':
+                update_ready.set()
+            elif line.strip() == 'UPDATE_FAILED':
+                update_failed.set()
         cancelled.set()
     threading.Thread(target=commands, daemon=True).start()
     backend = Backend(root)
     emit = lambda s: print(s, flush=True)
-    run_session(backend, Browser(backend, focus, cancelled, emit), emit)
+    run_session(backend, Browser(backend, focus, cancelled, emit, update_ready, update_failed), emit)
 
 
 if __name__ == '__main__':

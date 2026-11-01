@@ -25,13 +25,17 @@ def validate_source_names(names, approved_content=None):
     for name in names:
         safe_relative(name)
         parts=PurePosixPath(name).parts
-        if (parts[0] in {'data','outputs','docs','tests','.venv','.runtimes','.cache','.git'}
+        if (parts[0] in {'data','outputs','docs','tests','.venv','.runtimes','.cache','.git','.laura-updates','.laura-backups','.laura-update.lock'}
                 or 'node_modules' in parts or name.startswith('frontend/src/tests/')
                 or (name.startswith('frontend/public/media/') and name not in approved_content)
                 or (parts[0].startswith('.env') and name!='.env.example')
                 or (name.startswith('config/') and not name.endswith('.example.yaml'))
                 or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'} and name not in approved_content)
-                or (name.startswith('doc/') and any(v in name for v in ('归档','上线修复记录','验收记录','问题记录','计划','工具/')))):
+                or (name.startswith('doc/') and any(v in name for v in ('归档','上线修复记录','验收记录','问题记录','工具/')))
+                # Only this reviewed current roadmap is public; historical and
+                # implementation plans remain forbidden even if listed by mistake.
+                or (name.startswith('doc/') and '计划' in name
+                    and not (name=='doc/01-产品与路线/计划书.md' and name in approved_content))):
             raise ValueError('Private/development input is not allowed: '+name)
 
 

@@ -23,7 +23,7 @@ providers:
     context_limit: 32000
     structured_output_mode: json_object
     sdk_max_retries: 0
-active_generation_profile_id: deepseek
+active_generation_profile_id: internal
 generation_profiles:
   glm:
     provider: glm

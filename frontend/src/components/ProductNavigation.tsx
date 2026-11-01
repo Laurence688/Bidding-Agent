@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Button,Dropdown} from 'antd';
 import {DownOutlined} from '@ant-design/icons';
-const groups=[{title:'工作中心',items:[['projects','项目管理'],['tender-analysis','标书拆解'],['translation','标书翻译']]},{title:'数据管理',items:[['libraries','知识库'],['memories','记忆库']]},{title:'效果评估',items:[['observability','全链观测'],['review','应答审核'],['logs','运行日志'],['evaluation','评测构建']]},{title:'效率工具',items:[['tools','端口缓存计算']]},{title:'文档中心',items:[['docs','设计与使用文档']]},{title:'系统设置',items:[['settings','文本模型'],['embedding','向量模型'],['prompts','提示词'],['runtime','运行与同步']]}];
+const groups=[{title:'工作中心',items:[['projects','项目管理'],['tender-analysis','标书拆解'],['translation','标书翻译']]},{title:'数据管理',items:[['libraries','知识库'],['memories','记忆库']]},{title:'效果评估',items:[['observability','全链观测'],['review','应答审核'],['logs','运行日志'],['evaluation','评测构建']]},{title:'效率工具',items:[['tools','端口缓存计算']]},{title:'文档中心',items:[['docs','设计与使用文档']]},{title:'系统设置',items:[['settings','文本模型'],['embedding','向量模型'],['prompts','提示词'],['runtime','运行与同步'],['updates','检查更新']]}];
 export default function ProductNavigation({page,onNavigate}:{page:string;onNavigate:(page:string)=>void}){
  const [open,setOpen]=useState(''),nav=useRef<HTMLElement>(null),keyboard=useRef(false),pinned=useRef(false);
  useEffect(()=>{const close=(e:PointerEvent)=>{const target=e.target as Element;if(!nav.current?.contains(target)&&!target.closest('.ant-dropdown')){pinned.current=false;setOpen('');}};window.addEventListener('pointerdown',close);return()=>window.removeEventListener('pointerdown',close);},[]);

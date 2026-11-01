@@ -1,128 +1,146 @@
 [
   {
-    "id": "intro",
     "path": "README.md",
+    "id": "intro",
     "title": "Laura 文档中心",
     "scope": "current",
     "order": 0,
-    "category": "product"
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/00-入门总览.md",
     "id": "public-1",
-    "title": "Laura 入门总览",
-    "scope": "current",
-    "order": 1
+    "title": "入门总览",
+    "scope": "guide",
+    "order": 1,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/01-模型准备.md",
     "id": "public-2",
     "title": "模型准备",
-    "scope": "current",
-    "order": 2
+    "scope": "guide",
+    "order": 2,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/02-项目与产品.md",
     "id": "public-3",
     "title": "项目与产品",
-    "scope": "current",
-    "order": 3
+    "scope": "guide",
+    "order": 3,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/03-构建知识库.md",
     "id": "public-4",
     "title": "构建知识库",
-    "scope": "current",
-    "order": 4
+    "scope": "guide",
+    "order": 4,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/04-首次产品问答.md",
     "id": "public-5",
     "title": "首次产品问答",
-    "scope": "current",
-    "order": 5
+    "scope": "guide",
+    "order": 5,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/05-单条应标.md",
     "id": "public-6",
-    "title": "单条 SOC 应标",
-    "scope": "current",
-    "order": 6
+    "title": "单条应标",
+    "scope": "guide",
+    "order": 6,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/06-Excel应标审核与导出.md",
     "id": "public-7",
-    "title": "Excel 应标、审核与导出",
-    "scope": "current",
-    "order": 7
+    "title": "Excel应标审核与导出",
+    "scope": "guide",
+    "order": 7,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/07-单条翻译.md",
     "id": "public-8",
-    "title": "翻译与标书拆解",
-    "scope": "current",
-    "order": 8
+    "title": "单条翻译",
+    "scope": "guide",
+    "order": 8,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "00-使用指南/08-常见问题.md",
     "id": "public-9",
     "title": "常见问题",
-    "scope": "current",
-    "order": 9
+    "scope": "guide",
+    "order": 9,
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "prd",
     "path": "01-产品与路线/PRD.md",
-    "title": "Laura 产品说明",
+    "id": "prd",
+    "title": "SOC 投标助手产品需求文档",
     "scope": "current",
     "order": 10,
-    "category": "product"
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "architecture",
-    "path": "02-架构与技术/架构设计.md",
-    "title": "架构设计",
+    "path": "01-产品与路线/计划书.md",
+    "id": "plan",
+    "title": "SOC 投标助手当前计划与验收顺序",
     "scope": "current",
     "order": 11,
-    "category": "architecture"
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "rag",
     "path": "02-架构与技术/RAG设计.md",
-    "title": "RAG 与证据设计",
+    "id": "rag",
+    "title": "RAG 设计",
     "scope": "current",
     "order": 12,
-    "category": "architecture"
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "stack",
     "path": "02-架构与技术/技术栈选型.md",
-    "title": "技术栈与运行方式",
+    "id": "stack",
+    "title": "SOC 投标助手技术栈与配置",
     "scope": "current",
     "order": 13,
-    "category": "architecture"
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "interaction-design",
+    "path": "02-架构与技术/架构设计.md",
+    "id": "architecture",
+    "title": "SOC 投标助手架构设计",
+    "scope": "current",
+    "order": 14,
+    "publication_version": "v0.4.0"
+  },
+  {
     "path": "03-界面与交互/界面与交互设计.md",
+    "id": "interaction-design",
     "title": "界面与交互说明",
     "scope": "current",
-    "category": "product",
-    "order": 14
+    "order": 15,
+    "publication_version": "v0.4.0"
   },
   {
     "path": "03-界面与交互/知识库来源类型与整篇保留策略设计.md",
-    "id": "public-15",
+    "id": "public-16",
     "title": "知识来源类型与整篇保留",
     "scope": "current",
-    "order": 15
+    "order": 16,
+    "publication_version": "v0.4.0"
   },
   {
-    "id": "observability",
     "path": "05-质量与验收/运行观测与评测.md",
+    "id": "observability",
     "title": "运行观测与评测说明",
     "scope": "current",
-    "order": 16,
-    "category": "observability"
+    "order": 17,
+    "publication_version": "v0.4.0"
   }
 ]

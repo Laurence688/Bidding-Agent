@@ -59,6 +59,10 @@ internal static class Launcher {
     }
 
     static void Run(string root, string id) {
+        if(File.Exists(Path.Combine(root,".laura-update.lock"))) {
+            MessageBox.Show("Laura 正在更新，请等待完成后自动打开。若上次更新中断，请保留 .laura-backups 与更新记录并联系维护者处理。", "Laura 更新",MessageBoxButtons.OK,MessageBoxIcon.Information);
+            return;
+        }
         string python=Path.Combine(root,".venv","Scripts","python.exe");
         string bundledPython=Path.Combine(root,".runtimes","python","python.exe");
         bool bundled=File.Exists(bundledPython);
@@ -138,6 +142,54 @@ internal static class Launcher {
                         } catch(Exception exc) {
                             failure="无法打开默认浏览器："+exc.Message;
                             try { send("CLOSE"); } catch(IOException) { }
+                        }
+                    }
+                    if(e.Data.StartsWith("LAURA_UPDATE:")) {
+                        string updateWork=null;
+                        try {
+                            string token=e.Data.Substring(13);
+                            if(!System.Text.RegularExpressions.Regex.IsMatch(token,"^[a-f0-9]{32}$")) throw new IOException("更新请求无效。");
+                            string work=Path.Combine(root,".laura-updates",token);
+                            updateWork=work;
+                            string staged=Path.Combine(work,"extract","Laura");
+                            string updater=Path.Combine(staged,"scripts","apply_update.py");
+                            string runtime=Path.Combine(staged,".runtimes","python","python.exe");
+                            string request=Path.Combine(work,"request.json");
+                            if(!File.Exists(updater)||!File.Exists(runtime)||!File.Exists(request)) throw new IOException("更新文件不完整，请重新检查更新。");
+                            // The native host is outside the backend Job. The update helper
+                            // must survive service shutdown and replacement of this executable.
+                            var updateInfo=new ProcessStartInfo(runtime,"-I "+Quote(updater)+" --request "+Quote(request)) {WorkingDirectory=staged,UseShellExecute=false,CreateNoWindow=true};
+                            updateInfo.EnvironmentVariables.Remove("PYTHONHOME");
+                            updateInfo.EnvironmentVariables.Remove("PYTHONPATH");
+                            updateInfo.EnvironmentVariables["PYTHONNOUSERSITE"]="1";
+                            updateInfo.EnvironmentVariables["PYTHONUTF8"]="1";
+                            updateInfo.EnvironmentVariables["PYTHONDONTWRITEBYTECODE"]="1";
+                            // A stale acknowledgement cannot confirm this helper instance.
+                            string previousState=Path.Combine(work,"state.json");
+                            if(File.Exists(previousState)) File.Delete(previousState);
+                            using(var helper=Process.Start(updateInfo)) {
+                                var until=DateTime.UtcNow.AddSeconds(90);
+                                bool ready=false;
+                                while(DateTime.UtcNow<until) {
+                                    string stateFile=Path.Combine(work,"state.json");
+                                    if(File.Exists(stateFile)) {
+                                        string state=File.ReadAllText(stateFile,Encoding.UTF8);
+                                        if(System.Text.RegularExpressions.Regex.IsMatch(state,"\"phase\"\\s*:\\s*\"waiting\"")) {ready=true;break;}
+                                        if(System.Text.RegularExpressions.Regex.IsMatch(state,"\"status\"\\s*:\\s*\"failed\"")) break;
+                                    }
+                                    if(helper.HasExited) break;
+                                    Thread.Sleep(250);
+                                }
+                                if(!ready) throw new IOException("更新组件未完成启动确认，原服务保持运行，请重新检查更新。");
+                            }
+                            send("UPDATE_READY");
+                        } catch(Exception exc) {
+                            failure="无法启动更新："+exc.Message;
+                            if(updateWork!=null) {
+                                try { File.WriteAllText(Path.Combine(updateWork,"state.json"),"{\"schema_version\":1,\"status\":\"failed\",\"phase\":\"failed\",\"code\":\"UPDATE_HELPER_START_FAILED\",\"message\":\"无法启动更新，请重新检查更新；原程序与资料保留\",\"installed\":false,\"original_preserved\":true}",new UTF8Encoding(false)); }
+                                catch(IOException) { }
+                            }
+                            try { send("UPDATE_FAILED"); } catch(Exception) { }
                         }
                     }
                     if(e.Data.StartsWith("LAURA_ERROR:")) failure=e.Data.Substring(12);

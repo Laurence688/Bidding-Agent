@@ -46,6 +46,14 @@ def save(settings,body):
         targets=profiles if is_profiles else data['providers']
         for role,updates in updates_by_role.items():
             if role not in targets or not isinstance(updates,dict) or not set(updates).issubset(allowed):raise DomainError('MODEL_CONFIG_INVALID','不支持的模型配置字段',422)
+            updates={field:value.strip() if field in {'base_url','model_id','key'} and isinstance(value,str) else value
+                     for field,value in updates.items()}
+            if role=='internal' and isinstance(updates.get('base_url'),str):
+                # The portal may copy a complete chat-completions URL. Keep its
+                # deployment path (including /standard); never guess other APIs.
+                endpoint=updates['base_url'].rstrip('/')
+                if endpoint.endswith('/chat/completions'):
+                    updates['base_url']=endpoint[:-len('/chat/completions')]
             provider=targets[role]
             for field in ['timeout','max_output_tokens','context_limit']:
                 if field in updates and (type(updates[field]) is not int or not (1 if field=='timeout' else 256)<=updates[field]<=(600 if field=='timeout' else 2000000)):
@@ -84,7 +92,9 @@ def save(settings,body):
                 data['providers']['backup']=profiles['doubao']
             data['generation_profiles']={ident:profiles[ident] for ident in ['glm','internal']}
             selected=profiles[data.get('active_generation_profile_id') or 'glm']
-            if data.get('active_generation_profile_id') and (not selected['base_url'] or not selected['model_id']):
+            selected_id=data.get('active_generation_profile_id')
+            selecting='active_generation_profile_id' in body or selected_id in updates_by_role
+            if selected_id and selecting and (not selected['base_url'] or not selected['model_id']):
                 raise DomainError('MODEL_CONFIG_MISSING','请先填写所选供应商的 API 地址和模型 ID',422)
         data['config_version']=str(int(data['config_version'])+1)
         if env!=dict(dotenv_values(settings.configuration_root/'.env.local')):

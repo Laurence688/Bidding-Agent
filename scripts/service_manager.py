@@ -60,6 +60,8 @@ def main():
 
 
 def manage(args, settings):
+    if args.action=='start' and (ROOT/'.laura-update.lock').exists():
+        raise SystemExit('Laura正在更新，请等待更新完成后再启动。')
     folder, logs = settings.data_dir / 'runtime', settings.data_dir / 'logs'
     folder.mkdir(parents=True, exist_ok=True)
     logs.mkdir(parents=True, exist_ok=True)

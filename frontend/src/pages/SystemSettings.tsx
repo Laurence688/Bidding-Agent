@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {api,Data} from '../api/client';
 import {ErrorNotice} from '../components/Status';
-export function SystemNavigation({page,onNavigate}:{page:string;onNavigate:(page:string)=>void}){return <nav className="system-subnav" aria-label="系统设置分类">{[['settings','文本模型'],['embedding','向量模型'],['prompts','提示词'],['runtime','运行与同步']].map(([key,title])=><button key={key} aria-current={page===key?'page':undefined} onClick={()=>onNavigate(key)}>{title}</button>)}</nav>;}
+export function SystemNavigation({page,onNavigate}:{page:string;onNavigate:(page:string)=>void}){return <nav className="system-subnav" aria-label="系统设置分类">{[['settings','文本模型'],['embedding','向量模型'],['prompts','提示词'],['runtime','运行与同步'],['updates','检查更新']].map(([key,title])=><button key={key} aria-current={page===key?'page':undefined} onClick={()=>onNavigate(key)}>{title}</button>)}</nav>;}
 export default function RuntimeSettings(){
  const [status,setStatus]=useState<Data|null>(null),[sync,setSync]=useState<Data|null>(null),[error,setError]=useState<unknown>(null),[key,setKey]=useState(''),[message,setMessage]=useState('');
  const [busy,setBusy]=useState(false);const saving=useRef(false);

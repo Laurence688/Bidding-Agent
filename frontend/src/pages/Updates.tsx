@@ -1,0 +1,16 @@
+import {useEffect,useRef,useState} from 'react';
+import {Alert,Button,Modal,Progress,Space,Tag} from 'antd';
+import {api,Data} from '../api/client';
+import {ErrorNotice} from '../components/Status';
+
+const busyPhases=new Set(['checking','downloading','verifying']);
+export default function Updates(){
+ const [state,setState]=useState<Data|null>(null),[error,setError]=useState<unknown>(null),[busy,setBusy]=useState(false),[restarting,setRestarting]=useState(false);
+ const alive=useRef(true),request=useRef(false);
+ useEffect(()=>{alive.current=true;let timer:ReturnType<typeof setTimeout>;const refresh=async()=>{try{const value=await api('/updates');if(alive.current){setState(value);setError(null);if(['failed','completed'].includes(value.phase))setRestarting(false);}}catch(e){if(alive.current&&!restarting)setError(e);}finally{if(alive.current)timer=setTimeout(refresh,1000);}};void refresh();return()=>{alive.current=false;clearTimeout(timer);};},[restarting]);
+ async function action(path:string,body?:Data){if(request.current||restarting||!state?.supported)return;request.current=true;setBusy(true);setError(null);try{const value=await api(path,'POST',body);if(alive.current){setState(value);if(path.endsWith('/install'))setRestarting(true);}}catch(e){if(alive.current)setError(e);}finally{request.current=false;if(alive.current)setBusy(false);}}
+ const check=()=>Modal.confirm({title:'检查并自动下载更新',content:'将连接本项目的 GitHub 更新服务，发现可验证的新版后自动下载。安装前还会确认并自动备份；生成 API 的联网设置保持原选择。',okText:'检查并下载',cancelText:'取消',onOk:()=>action('/updates/check',{allow_download:true})});
+ const install=()=>Modal.confirm({title:'自动备份、安装并重启',content:'请先保存当前输入草稿。系统会保留知识库、对话、记忆、模型与配置并自动备份；有排队或运行任务时暂不安装。更新期间服务会短暂停止，完成后自动打开 Laura。',okText:'安装并重启',cancelText:'取消',onOk:()=>action('/updates/install',{confirm_restart:true})});
+ const active=busyPhases.has(state?.phase),percent=state?.total?Math.min(100,Math.floor(100*(state.completed??0)/state.total)):undefined;
+ return <section><div className="page-heading"><div><p className="eyebrow">系统设置</p><h1>检查更新</h1><p>自动下载新版，自动备份并保留你的资料与设置。</p></div><Tag>当前版本 {state?.installed_version??'正在读取'}</Tag></div><ErrorNotice error={error} onDismiss={()=>setError(null)}/>{state&&<div className="panel"><h2>{state.latest_version?`可用版本 ${state.latest_version}`:'Laura 程序更新'}</h2>{!state.supported&&<Alert type="info" title="当前为开发目录" description="开发目录不自动覆盖。便携版用户可在此检查更新，或双击包内的“检查更新Laura.cmd”。"/>}<p role="status">{restarting?'正在自动备份和重启，请等待新版打开；下载文件与备份会保留。':state.message}</p>{active&&<Progress percent={percent} status="active" format={p=>state.phase==='verifying'?'正在校验':`${p??0}%`}/>}<Space wrap><Button type="primary" disabled={!state.supported||active||busy||restarting} onClick={check}>检查更新</Button>{active&&<Button disabled={busy||state.phase==='verifying'} onClick={()=>void action('/updates/pause')}>暂停下载</Button>}{state.phase==='ready'&&<Button type="primary" disabled={!state.supported||busy||restarting||!state.can_install} onClick={install}>安装并重启</Button>}</Space>{state.phase==='ready'&&!state.can_install&&<p>新版已就绪。请关闭 Laura 后，在原目录双击“检查更新Laura.cmd”完成安装。</p>}{state.notes&&<details><summary>版本说明</summary><pre style={{whiteSpace:'pre-wrap'}}>{state.notes}</pre></details>}<p className="muted">更新不要求手动搬迁数据。安装前自动备份到原目录的 .laura-backups；失败会尝试恢复原程序与数据。检查更新需要能访问 GitHub。</p></div>}</section>;
+}

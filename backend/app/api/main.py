@@ -45,6 +45,11 @@ def create_app(settings=None):
     reconcile_interrupted(repo)
     app = FastAPI(title='SOC 投标助手', docs_url='/api/docs', redoc_url=None)
     app.state.repo, app.state.settings = repo, settings
+    # Drain writes already accepted before install, then reject new writes until
+    # the external installer finishes. A queued task cannot slip past idle checks.
+    update_mutations = asyncio.Lock()
+    from app.api.updates import install_update_routes
+    install_update_routes(app,settings)
     from app.services.browser_sessions import install_browser_routes
     install_browser_routes(app, settings)
     app.add_middleware(CORSMiddleware, allow_origins=settings.local['allowed_origins'], allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -74,7 +79,13 @@ def create_app(settings=None):
                 raise DomainError('ORIGIN_DENIED', '请求来源不允许', 403)
             if request.url.path.startswith('/api/v1/') and request.url.path != '/api/v1/bootstrap' and request.method != 'OPTIONS':
                 access.check(origin, request.headers.get('x-local-token'))
-            response = await call_next(request)
+            if request.url.path.startswith('/api/v1/') and request.method not in {'GET','HEAD','OPTIONS'}:
+                async with update_mutations:
+                    if not request.url.path.startswith('/api/v1/updates') and app.state.updates.launcher_update_token():
+                        raise DomainError('UPDATE_IN_PROGRESS','Laura正在准备更新，请等待重启完成后再操作',409)
+                    response = await call_next(request)
+            else:
+                response = await call_next(request)
             response.headers['X-Content-Type-Options'] = 'nosniff'
             response.headers['Referrer-Policy'] = 'no-referrer'
             response.headers['Cache-Control'] = 'no-store' if request.url.path.startswith('/api/') else 'no-cache'

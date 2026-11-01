@@ -62,7 +62,10 @@ def install_browser_routes(app, settings):
         supplied = request.headers.get('x-launcher-token', '')
         if not expected or not secrets.compare_digest(expected, supplied):
             return JSONResponse(status_code=403, content={'error': 'LAUNCHER_SESSION_DENIED'})
-        return lease.status(expected)
+        result=lease.status(expected)
+        updates=getattr(app.state,'updates',None)
+        if updates and updates.launcher_update_token():result['update_token']=updates.launcher_update_token()
+        return result
 
     @app.websocket('/api/launcher/session')
     async def page(websocket: WebSocket):
