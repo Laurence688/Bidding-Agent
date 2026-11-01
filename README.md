@@ -4,6 +4,38 @@
 
 便携版面向 Windows 10/11（64 位），已内置 Python 3.11.17、Node.js 24.18.0、后端依赖和已构建网页，无需单独安装 Python、Node 或 npm，也不修改系统 PATH。首次使用仍需联网下载 Embedding 模型，模型服务账号和业务知识库由使用者自行配置。
 
+<!-- LAURA-PREVIEWS:START -->
+[下载 Windows 免安装包](https://github.com/Laurence688/Bidding-Agent/releases) · [完整使用指南](doc/00-使用指南/00-入门总览.md) · [观看功能演示](frontend/public/media/laura-demo.mp4)
+
+## 界面与主要流程
+
+以下截图使用合成演示数据，仅展示界面与操作流程；示例中的版本、结论与耗时不代表真实项目效果。
+
+### 1. 从工作台开始
+
+在本地浏览器中完成产品问答、SOC 应答、Excel 批量处理与人工审核。
+
+![Laura 首页与投标工作流程概览](doc/assets/guides/intro-open.png)
+
+### 2. 准备并发布知识库
+
+上传 Word、PDF 或 Excel，预览切分、构建索引，再确认发布可供项目使用的版本。
+
+![知识库从上传、切分、向量化到确认发布的步骤](doc/assets/guides/kb-publish.png)
+
+### 3. 沿回答引用核对来源
+
+打开引用即可查看来源片段及版本，帮助人工核对回答依据。
+
+![产品问答与 Excel 来源单元格定位示例](doc/assets/guides/qa-source.png)
+
+### 4. 审核应答，再导出结果
+
+逐条核对英文口径、证据与四态结论，满足审核和导出条件后生成原表副本。
+
+![Excel 应答审核详情与证据核对界面](doc/assets/guides/excel-review.png)
+<!-- LAURA-PREVIEWS:END -->
+
 ## 双击启动（推荐）
 
 1. 在 GitHub Release 下载 **Laura-Portable-Windows-x64.zip**，解压完整目录。GitHub 的 Code → Download ZIP 是源码包，不含运行环境。
