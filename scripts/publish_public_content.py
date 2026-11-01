@@ -31,7 +31,7 @@ def publish(source, destination, guide_assets=None):
     source,destination=Path(source),Path(destination)
     guide_assets=Path(guide_assets) if guide_assets is not None else source/'.cache/public-guides-v04'
     if not (guide_assets/'manifest.json').is_file():
-        raise ValueError('缺少新版合成截图登记文件，请先捕获 v0.4.0 使用指南截图')
+        raise ValueError('缺少新版合成截图登记文件，请先准备 '+VERSION+' 使用指南截图')
     capture=json.loads((guide_assets/'manifest.json').read_text('utf-8'))
     if capture.get('publication_version')!=VERSION:
         raise ValueError('截图版本不匹配，禁止回退复制旧截图')

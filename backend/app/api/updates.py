@@ -15,8 +15,18 @@ def install_update_routes(app,settings):
 
     @app.post('/api/v1/updates/check')
     def check(body:dict=Body(...)):
-        if set(body)!={'allow_download'} or body['allow_download'] is not True:raise DomainError('UPDATE_CONFIRM_REQUIRED','请确认连接GitHub检查并自动下载更新',422)
+        if set(body)!={'allow_check'} or body['allow_check'] is not True:raise DomainError('UPDATE_CONFIRM_REQUIRED','请确认连接GitHub检查版本；检查不会下载或安装',422)
         return call(lambda:service.check())
+
+    @app.put('/api/v1/updates/preferences')
+    def preferences(body:dict=Body(...)):
+        if set(body)!={'enabled'} or type(body['enabled']) is not bool:raise DomainError('UPDATE_PREFERENCE_INVALID','请明确设置更新开关',422)
+        return call(lambda:service.set_enabled(body['enabled']))
+
+    @app.post('/api/v1/updates/download')
+    def download(body:dict=Body(...)):
+        if set(body)!={'allow_download'} or body['allow_download'] is not True:raise DomainError('UPDATE_CONFIRM_REQUIRED','请确认下载新版；下载完成不会自动安装',422)
+        return call(lambda:service.download())
 
     @app.post('/api/v1/updates/pause')
     def pause():return service.pause()

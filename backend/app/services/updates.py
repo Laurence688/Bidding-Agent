@@ -13,7 +13,7 @@ import httpx
 from app.security.configuration import atomic_write
 from app.services.update_download import UpdateDownloadError,discover_latest,download_release,safe_update_path,version_tuple
 
-APP_VERSION='0.4.0'
+APP_VERSION='0.4.1'
 
 
 class UpdateServiceError(Exception):
@@ -44,7 +44,7 @@ class UpdateService:
             self._state=json.loads(self._cache_file('state.json').read_text('utf-8'))
             if not isinstance(self._state,dict):raise ValueError('invalid update state')
         except UpdateDownloadError as exc:self._state={'phase':'failed','message':exc.message,'error_code':exc.code}
-        except (OSError,ValueError):self._state={'phase':'idle','message':'检查后自动下载可验证的新版'}
+        except (OSError,ValueError):self._state={'phase':'idle','message':'等待手动检查更新'}
         if self._state.get('phase') in {'checking','downloading','verifying'}:
             self._state.update(phase='interrupted',message='上次下载未完成，检查更新可继续')
 
@@ -53,6 +53,24 @@ class UpdateService:
         if not path.is_relative_to(self.root):
             raise UpdateDownloadError('UPDATE_PATH_UNSAFE','更新缓存越过了安装目录，已停止写入')
         return path
+
+    def enabled(self):
+        try:
+            path=safe_update_path(self.data_dir/'runtime/update-preferences.json')
+            return json.loads(path.read_text('utf-8')).get('enabled') is True
+        except (OSError,ValueError,AttributeError,UpdateDownloadError):return False
+
+    def set_enabled(self,value):
+        if type(value) is not bool:raise UpdateServiceError('UPDATE_PREFERENCE_INVALID','更新开关必须为开启或关闭')
+        with self.lock:
+            if self._state.get('phase')=='installing':raise UpdateServiceError('UPDATE_BUSY','正在安装更新，请等待完成后再修改开关')
+            try:atomic_write(safe_update_path(self.data_dir/'runtime/update-preferences.json'),json.dumps({'schema_version':1,'enabled':value}))
+            except UpdateDownloadError as exc:raise UpdateServiceError(exc.code,exc.message) from exc
+            if not value:self.cancelled.set()
+        return self.status()
+
+    def _assert_enabled(self):
+        if not self.enabled():raise UpdateServiceError('UPDATE_DISABLED','更新功能已关闭，请先手动打开更新开关')
 
     def _save(self,**changes):
         with self.lock:
@@ -81,7 +99,8 @@ class UpdateService:
             state=dict(self._state)
         keys={'phase','message','completed','total','latest_version','notes','error_code','installed','rolled_back','original_preserved','restarted','restart_required','recovery_required'}
         result={k:v for k,v in state.items() if k in keys}
-        result.update(installed_version=installed_version(self.root),supported=self.supported,can_install=self.supported and state.get('phase')=='ready' and self.launcher_available())
+        enabled=self.enabled()
+        result.update(enabled=enabled,installed_version=installed_version(self.root),supported=self.supported,can_install=enabled and self.supported and state.get('phase')=='ready' and self.launcher_available())
         return result
 
     def launcher_available(self):
@@ -90,6 +109,7 @@ class UpdateService:
 
     def check(self,*,background=True):
         if not self.supported:raise UpdateServiceError('UPDATE_DEVELOPMENT','开发目录不执行自动覆盖；请使用便携版的检查更新入口')
+        self._assert_enabled()
         with self.lock:
             self._reconcile_helper()
             try:self._cache_file('state.json')
@@ -110,12 +130,31 @@ class UpdateService:
         try:
             with self.client_factory() as client:
                 release=discover_latest(client,installed_version(self.root))
-                self._save(latest_version=release['version'],notes=release['notes'])
+                self._save(latest_version=release['version'],notes=release['notes'],release=release)
                 if not release['available']:
                     self._save(phase='up_to_date',message='当前已是最新版本');return
-                token=uuid.uuid4().hex
-                self._save(token=token,release=release,phase='downloading',message='发现新版，正在自动下载')
-                archive=self._cache_file('downloads/'+release['version']+'-'+release['sha256'][:12]+'.zip')
+                self._save(phase='available',message='发现新版；点击“下载新版”后才会下载',completed=0,total=release['size'])
+        except Exception as exc:self._failed(exc)
+
+    def download(self,*,background=True):
+        if not self.supported:raise UpdateServiceError('UPDATE_DEVELOPMENT','开发目录不能执行便携版更新')
+        self._assert_enabled()
+        with self.lock:
+            if self.thread and self.thread.is_alive():return self.status()
+            if self._state.get('phase') not in {'available','paused','failed'} or not self._state.get('release',{}).get('available'):
+                raise UpdateServiceError('UPDATE_NOT_AVAILABLE','请先手动检查更新')
+            self.cancelled.clear()
+            self._save(token=uuid.uuid4().hex,phase='downloading',message='正在下载已确认的新版')
+            if background:
+                self.thread=threading.Thread(target=self._download,name='Laura-release-download',daemon=True);self.thread.start()
+            else:self._download()
+        return self.status()
+
+    def _download(self):
+        try:
+            release=self._state['release'];token=self._state['token']
+            archive=self._cache_file('downloads/'+release['version']+'-'+release['sha256'][:12]+'.zip')
+            with self.client_factory() as client:
                 download_release(client,release,archive,cancel=self.cancelled,progress=lambda event:self._save(**event))
             self._save(phase='verifying',message='正在校验并准备更新')
             extract=self.extractor or load_update_core().extract_verified_zip
@@ -125,11 +164,13 @@ class UpdateService:
             if release.get('source_commit') and manifest.get('source_commit')!=release['source_commit']:raise UpdateServiceError('UPDATE_SOURCE_MISMATCH','更新包来源与发布信息不一致')
             if self.cancelled.is_set():self._save(phase='paused',message='下载已暂停，可稍后继续');return
             self._save(phase='ready',message='新版已就绪，安装时将自动备份并保留用户数据',completed=release['size'],total=release['size'])
-        except Exception as exc:
-            code=getattr(exc,'code','UPDATE_CHECK_FAILED')
-            message=getattr(exc,'message','更新服务暂时不可用，请检查网络后重试')
-            try:self._save(phase='paused' if code=='UPDATE_CANCELLED' else 'failed',message=message,error_code=code)
-            except (OSError,UpdateServiceError):pass
+        except Exception as exc:self._failed(exc)
+
+    def _failed(self,exc):
+        code=getattr(exc,'code','UPDATE_CHECK_FAILED')
+        message=getattr(exc,'message','更新服务暂时不可用，请检查网络后重试')
+        try:self._save(phase='paused' if code=='UPDATE_CANCELLED' else 'failed',message=message,error_code=code)
+        except (OSError,UpdateServiceError):pass
 
     def pause(self):
         self.cancelled.set();return self.status()
@@ -147,6 +188,7 @@ class UpdateService:
         if confirmed is not True:raise UpdateServiceError('UPDATE_CONFIRM_REQUIRED','请确认自动备份、安装并重启')
         if not self.supported:raise UpdateServiceError('UPDATE_DEVELOPMENT','开发目录不能执行便携版覆盖更新')
         self._assert_idle()
+        self._assert_enabled()
         with self.lock:
             if self._state.get('phase')!='ready':raise UpdateServiceError('UPDATE_NOT_READY','请先检查更新并等待下载校验完成')
             token=self._state.get('token','')

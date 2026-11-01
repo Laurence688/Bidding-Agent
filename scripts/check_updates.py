@@ -39,6 +39,11 @@ def create_request(target,token,source,manifest,data_root,restart=True):
     return file
 
 
+def confirm(message):
+    try:return input(message+' [y/N]：').strip().lower() in {'y','yes','是'}
+    except (EOFError,KeyboardInterrupt):return False
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--target',type=Path,default=PROGRAM)
@@ -48,23 +53,30 @@ def main(argv=None):
     _manifest(target)
     data_root=local_path(os.getenv('SOC_DATA_DIR') or target/'data')
     print('当前版本：'+installed_version(target),flush=True)
+    service=UpdateService(target,data_root)
+    if not service.enabled():
+        if not confirm('更新功能默认关闭，是否开启并手动检查更新'):return 0
+        service.set_enabled(True)
     local=stage_local_release(PROGRAM,target) if PROGRAM.resolve()!=target else None
     if local:
         token,source,manifest=local
-        print('已找到当前安装包中的新版，将自动备份并升级原目录。',flush=True)
+        print('已找到当前安装包中的新版，确认安装后将自动备份并升级原目录。',flush=True)
     else:
-        service=UpdateService(target,data_root)
         def show(**changes):
             original(**changes)
             if changes.get('phase')!='downloading':print(changes.get('message',''),flush=True)
         original=service._save;service._save=show
         state=service.check(background=False)
         if state['phase']=='up_to_date':print('当前已是最新版本。',flush=True);return 0
+        if state['phase']=='available':
+            if not confirm('发现新版 '+state['latest_version']+'，是否下载（下载不会自动安装）'):return 0
+            state=service.download(background=False)
         if state['phase']!='ready':raise UpdateError(state.get('error_code','UPDATE_DOWNLOAD_FAILED'),state['message'])
         token=service._state['token'];source=target/'.laura-updates'/token/'extract/Laura'
         manifest=json.loads((source/'package-manifest.json').read_text('utf-8'))
     # The GUI path hands off through the native host; this standalone command is
     # already outside that Job. Do not interrupt an open installation or its tasks.
+    if not confirm('是否安装新版（将自动备份，保留资料和设置，并重启Laura）'):return 0
     assert_quiescent(target,data_root)
     request=create_request(target,token,source,manifest,data_root,not args.no_restart)
     runtime=source/'.runtimes/python/python.exe'
