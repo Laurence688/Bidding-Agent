@@ -132,7 +132,7 @@ def prepare(args):
     print('Installing pinned backend wheels offline into clean Python',flush=True)
     subprocess.run([executable,'-m','pip','--isolated','--disable-pip-version-check','install','--quiet','--no-index','--no-deps','--no-compile','--require-hashes','--find-links',str(args.wheelhouse.resolve()),'-r',str(hashed_lock),'--target',str(python/'Lib/site-packages'),'--upgrade'],check=True,env=env,cwd=stage)
     subprocess.run([executable,'-m','pip','check'],check=True,env=env,cwd=stage)
-    for folder in [python/'Lib/site-packages/Scripts',python/'Scripts']:
+    for folder in [python/'Lib/site-packages/Scripts',python/'Lib/site-packages/bin',python/'Scripts']:
         if folder.exists():
             assert folder.resolve().is_relative_to(stage)
             shutil.rmtree(folder)
