@@ -45,6 +45,8 @@ def create_app(settings=None):
     reconcile_interrupted(repo)
     app = FastAPI(title='SOC 投标助手', docs_url='/api/docs', redoc_url=None)
     app.state.repo, app.state.settings = repo, settings
+    from app.services.browser_sessions import install_browser_routes
+    install_browser_routes(app, settings)
     app.add_middleware(CORSMiddleware, allow_origins=settings.local['allowed_origins'], allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
                        allow_headers=['Content-Type', 'X-Local-Token', 'Idempotency-Key', 'Last-Event-ID'])
 
@@ -116,7 +118,9 @@ def create_app(settings=None):
     @app.get('/api/v1/bootstrap')
     def bootstrap():
         from app.services.libraries import LibraryService
-        return {'token': token, 'local_user_id': repo.local_user_id, 'products': LibraryService(repo,settings).products()}
+        from app.services.browser_sessions import current_launcher_token
+        return {'token': token, 'local_user_id': repo.local_user_id, 'products': LibraryService(repo,settings).products(),
+                'launcher_session': current_launcher_token(settings.data_dir)}
 
     @app.get('/api/v1/health')
     def health():

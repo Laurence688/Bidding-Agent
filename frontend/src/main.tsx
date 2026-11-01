@@ -5,4 +5,6 @@ import LauraTheme from './LauraTheme';
 import './styles.css';
 import './shell.css';
 import './visual.css';
+import {startLauncherSession} from './launcherSession';
+startLauncherSession();
 createRoot(document.getElementById('root')!).render(<React.StrictMode><LauraTheme><App/></LauraTheme></React.StrictMode>);

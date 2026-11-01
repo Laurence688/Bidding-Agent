@@ -46,7 +46,8 @@ try {
         & $venvPython -c 'import sys; from pathlib import Path; p=Path(sys.argv[1]); required=["model.safetensors","config.json","tokenizer.json","modules.json","1_Pooling/config.json"]; assert all((p/n).is_file() for n in required), "Embedding files are incomplete"' (Join-Path $PSScriptRoot 'data\local-models\embedding')
         if ($LASTEXITCODE -ne 0) { throw 'Embedding directory is incomplete.' }
     }
-    Write-Host 'Installation complete. Run .\Start.ps1 and configure your own provider and knowledge library.'
+    try { & (Join-Path $PSScriptRoot 'scripts\CreateDesktopShortcut.ps1') } catch { Write-Warning 'Desktop shortcut could not be created. You can still double-click Laura.exe.' }
+    Write-Host 'Installation complete. Double-click Laura.exe and configure your own provider and knowledge library.'
 } finally {
     Pop-Location
 }
