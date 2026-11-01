@@ -17,21 +17,21 @@ try {
     if (Test-Path -LiteralPath 'laura-bundle.json') { $bundle = Get-Content -LiteralPath 'laura-bundle.json' -Raw | ConvertFrom-Json }
     $bundledPython = Join-Path $PSScriptRoot '.runtimes\python\python.exe'
     $bundledNode = Join-Path $PSScriptRoot '.runtimes\node\node.exe'
-    $versionCheck = 'import sys; assert sys.version_info[:2] == (3, 11), "Python 3.11 is required"'
+    $runtimeHelper = Join-Path $PSScriptRoot 'scripts\setup_runtime.py'
     if (Test-Path -LiteralPath $bundledPython) {
         $pythonExe = $bundledPython
     } else {
         if (-not (Test-Path -LiteralPath '.venv\Scripts\python.exe')) {
             if ($Python) {
-                & $Python -c $versionCheck
+                & $Python -I $runtimeHelper check-python
                 if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 is required.' }
                 & $Python -m venv .venv
             } elseif (Get-Command py -ErrorAction SilentlyContinue) {
-                & py -3.11 -c $versionCheck
+                & py -3.11 -I $runtimeHelper check-python
                 if ($LASTEXITCODE -ne 0) { throw 'Use the portable Release ZIP, or install Python 3.11.' }
                 & py -3.11 -m venv .venv
             } else {
-                & python -c $versionCheck
+                & python -I $runtimeHelper check-python
                 if ($LASTEXITCODE -ne 0) { throw 'Use the portable Release ZIP, or install Python 3.11.' }
                 & python -m venv .venv
             }
@@ -39,7 +39,7 @@ try {
         }
         $pythonExe = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
     }
-    & $pythonExe -I -c $versionCheck
+    & $pythonExe -I $runtimeHelper check-python
     if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 is required.' }
     $nodeExe = 'node'
     $npmCommand = 'npm.cmd'
@@ -49,10 +49,12 @@ try {
         $nodeExe = $bundledNode
         $npmCommand = Join-Path $nodeFolder 'npm.cmd'
     }
-    & $nodeExe -e 'const [a,b]=process.versions.node.split(".").map(Number); if(a<22||(a===22&&b<12)) process.exit(1)'
+    $nodeVersionText = & $nodeExe --version
     if ($LASTEXITCODE -ne 0) { throw 'Use the portable Release ZIP, or install Node.js 22.12+.' }
+    $nodeVersion = [Version]($nodeVersionText.Trim().TrimStart('v'))
+    if ($nodeVersion.Major -lt 22 -or ($nodeVersion.Major -eq 22 -and $nodeVersion.Minor -lt 12)) { throw 'Node.js 22.12+ is required.' }
     if ($bundle -and $bundle.backend_preinstalled) {
-        & $pythonExe -I -c 'import fastapi, uvicorn, yaml, httpx, langgraph, faiss, sentence_transformers, markdown_it; print("Bundled backend ready")'
+        & $pythonExe -I $runtimeHelper probe-backend
         if ($LASTEXITCODE -ne 0) { throw 'Bundled backend is incomplete. Extract the complete portable ZIP again.' }
     } else {
         & $pythonExe -m ensurepip --upgrade
@@ -75,7 +77,7 @@ try {
     if (-not (Test-Path -LiteralPath '.env.local')) { Copy-Item -LiteralPath '.env.example' -Destination '.env.local' }
     if ($DownloadEmbedding) {
         $embeddingPath = Join-Path $PSScriptRoot 'data\local-models\embedding'
-        & $pythonExe -c 'import os,sys; from pathlib import Path; p=Path(sys.argv[1]); required=["model.safetensors","config.json","tokenizer.json","modules.json","1_Pooling/config.json"]; complete=all((p/n).is_file() for n in required); os.environ["HF_HUB_DISABLE_TELEMETRY"]="1"; from huggingface_hub import snapshot_download; complete or snapshot_download(repo_id="Qwen/Qwen3-Embedding-0.6B", local_dir=str(p), allow_patterns=["*.json","model.safetensors","*.txt","LICENSE","README.md"]); assert all((p/n).is_file() for n in required), "Embedding files are incomplete"' $embeddingPath
+        & $pythonExe $runtimeHelper download-embedding --target $embeddingPath
         if ($LASTEXITCODE -ne 0) { throw 'Embedding download failed. Check your network and double-click Laura.exe again to retry.' }
     }
     if (-not $NoDesktopShortcut) {
