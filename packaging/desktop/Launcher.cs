@@ -60,9 +60,21 @@ internal static class Launcher {
 
     static void Run(string root, string id) {
         string python=Path.Combine(root,".venv","Scripts","python.exe");
+        string bundledPython=Path.Combine(root,".runtimes","python","python.exe");
+        bool bundled=File.Exists(bundledPython);
+        if(bundled) python=bundledPython;
         string script=Path.Combine(root,"scripts","desktop_launcher.py");
+        if(bundled && (!File.Exists(Path.Combine(root,"data","runtime","first-run.ready")) || !File.Exists(Path.Combine(root,"frontend","dist","index.html")))) {
+            string setup=Path.Combine(root,"Setup.ps1");
+            if(!File.Exists(setup)) throw new IOException("首次初始化文件缺失，请重新解压完整安装包。");
+            var initialize=new ProcessStartInfo("powershell.exe","-NoProfile -ExecutionPolicy Bypass -File "+Quote(setup)+" -DownloadEmbedding") { WorkingDirectory=root, UseShellExecute=true };
+            using(var installer=Process.Start(initialize)) {
+                installer.WaitForExit();
+                if(installer.ExitCode!=0) throw new IOException("首次初始化尚未完成。请检查网络后再次双击 Laura.exe；已下载的内容会保留。");
+            }
+        }
         if (!File.Exists(python) || !File.Exists(Path.Combine(root,"frontend","dist","index.html"))) {
-            MessageBox.Show("请先双击项目目录中的“安装Laura.cmd”，完成首次安装。\n安装需要 Python 3.11、Node.js 22.12+ 和网络。\n\n安装完成后，再次双击 Laura.exe。", "Laura 首次使用", MessageBoxButtons.OK,MessageBoxIcon.Information);
+            MessageBox.Show("请下载并解压 GitHub Release 中的免安装完整包，再双击 Laura.exe。\n\n源码包用户可双击“安装Laura.cmd”准备环境。", "Laura 首次使用", MessageBoxButtons.OK,MessageBoxIcon.Information);
             return;
         }
         if (!File.Exists(script)) throw new IOException("启动文件缺失，请重新解压完整项目。请勿单独移动 Laura.exe。");
@@ -95,6 +107,9 @@ internal static class Launcher {
                 var info=new ProcessStartInfo(python,Quote(script)) { WorkingDirectory=root, UseShellExecute=false, CreateNoWindow=true, RedirectStandardInput=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8, StandardErrorEncoding=Encoding.UTF8 };
                 info.EnvironmentVariables["PYTHONUTF8"]="1";
                 info.EnvironmentVariables["PYTHONUNBUFFERED"]="1";
+                info.EnvironmentVariables["PYTHONNOUSERSITE"]="1";
+                info.EnvironmentVariables.Remove("PYTHONHOME");
+                info.EnvironmentVariables.Remove("PYTHONPATH");
                 child=new Process { StartInfo=info };
                 child.OutputDataReceived+=(s,e)=> {
                     if(e.Data==null) return;

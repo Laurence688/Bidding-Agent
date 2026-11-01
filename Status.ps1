@@ -1,3 +1,4 @@
 $ErrorActionPreference = 'Stop'
-& (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') (Join-Path $PSScriptRoot 'scripts\service_manager.py') status
+. (Join-Path $PSScriptRoot 'scripts\ResolvePython.ps1')
+& (Get-LauraPython -ProjectRoot $PSScriptRoot) (Join-Path $PSScriptRoot 'scripts\service_manager.py') status
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
