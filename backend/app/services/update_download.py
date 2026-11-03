@@ -14,7 +14,7 @@ from urllib.parse import urljoin, urlsplit
 RELEASES_URL='https://api.github.com/repositories/1440902300/releases?per_page=30'
 ASSET_NAME='Laura-Portable-Windows-x64.zip'
 MAX_ARCHIVE_BYTES=2*1024**3
-SIDECAR_URL='https://github.com/Laurence688/Bid-Agent/releases/latest/download/laura-update.json'
+SIDECAR_URL='https://github.com/Laurence688/Bidding-Agent/releases/latest/download/laura-update.json'
 MAX_MANIFEST_BYTES=65536
 
 
