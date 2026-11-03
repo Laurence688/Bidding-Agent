@@ -109,6 +109,24 @@ def unpack_node(archive,destination):
                 with package.open(item) as src,target.open('wb') as dst:shutil.copyfileobj(src,dst)
 
 
+def write_update_sidecar(archive,*,version,source_commit,notes='',channel='test'):
+    """Generate metadata only after the final archive has been closed."""
+    if not re.fullmatch(r'\d+\.\d+\.\d+-portable',version):raise ValueError('Portable version required')
+    if not re.fullmatch('[a-fA-F0-9]{40}',source_commit):raise ValueError('Full source commit required')
+    if channel not in {'stable','test'}:raise ValueError('Unknown update channel')
+    if not isinstance(notes,str) or len(notes)>12000:raise ValueError('Release notes must be at most 12000 characters')
+    archive=Path(archive)
+    if archive.name!='Laura-Portable-Windows-x64.zip':raise ValueError('Use the canonical portable archive filename')
+    tag='v'+version
+    payload={'schema_version':1,'channel':channel,'version':version,'tag':tag,
+             'url':'https://github.com/Laurence688/Bid-Agent/releases/download/'+tag+'/'+archive.name,
+             'size':archive.stat().st_size,'sha256':digest(archive),'source_commit':source_commit,'notes':notes}
+    target=archive.parent/'laura-update.json'
+    if target.exists():raise FileExistsError('Use a new sidecar output directory')
+    target.write_text(json.dumps(payload,ensure_ascii=False,indent=2)+'\n','utf-8')
+    return target
+
+
 def prepare(args):
     from packaging.utils import canonicalize_name,parse_wheel_filename
     import yaml
@@ -194,12 +212,15 @@ def prepare(args):
     with zipfile.ZipFile(args.output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=4,allowZip64=True) as archive:
         for file in sorted(stage.rglob('*')):
             if file.is_file():archive.write(file,'Laura/'+file.relative_to(stage).as_posix())
+    write_update_sidecar(args.output,version=args.version,source_commit=manifest['source_commit'],notes=args.notes_file.read_text('utf-8') if getattr(args,'notes_file',None) else '',channel=getattr(args,'channel','test'))
     print(json.dumps({'files':len(manifest['files'])+1,'zip_bytes':args.output.stat().st_size,'sha256':digest(args.output)}),flush=True)
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--version',default='0.3.0-portable')
+    parser.add_argument('--channel',choices=('stable','test'),default='test')
+    parser.add_argument('--notes-file',type=Path)
+    parser.add_argument('--version',required=True)
     for name in ('source','stage','output','python-archive','node-archive','wheelhouse'):
         parser.add_argument('--'+name,type=Path,required=True)
     for name in ('python-sha256','node-sha256'):parser.add_argument('--'+name,required=True)

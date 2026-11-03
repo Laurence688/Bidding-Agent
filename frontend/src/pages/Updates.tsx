@@ -4,6 +4,7 @@ import {api,Data} from '../api/client';
 import {ErrorNotice} from '../components/Status';
 
 const busyPhases=new Set(['checking','downloading','verifying']);
+function localTime(value:unknown){return typeof value==='number'&&Number.isFinite(value)?new Date(value*1000).toLocaleString('zh-CN'):'';}
 export default function Updates(){
  const [state,setState]=useState<Data|null>(null),[error,setError]=useState<unknown>(null);
  const [busy,setBusy]=useState(false),[restarting,setRestarting]=useState(false),[missing,setMissing]=useState(false);
@@ -51,6 +52,9 @@ export default function Updates(){
    <h2>{state.latest_version?`可用版本 ${state.latest_version}`:'Laura 程序更新'}</h2>
    {!state.supported&&<Alert type="info" title="当前为开发目录" description="开发分支通过代码管理更新，不接受便携包覆盖。便携版用户可在此手动检查更新，或运行包内的“检查更新Laura.cmd”。"/>}
    <p role="status">{restarting?'正在自动备份和重启，请等待新版打开；下载文件与备份会保留。':state.message}</p>
+   {state.checked_at&&<p className="muted">上次成功检查：{localTime(state.checked_at)}{state.cached?' · 缓存结果':''}{state.discovery_source==='sidecar'?' · 发布清单直链':state.discovery_source==='rest'?' · GitHub API':''}</p>}
+   {state.retry_at&&<p>建议重试时间：{localTime(state.retry_at)}</p>}
+   {state.phase==='failed'&&<p>也可从已核验的新版完整便携包运行“检查更新Laura.cmd”，选择原目录更新；请先将新版解压到独立目录。</p>}
    {active&&<Progress percent={percent} status="active" format={p=>state.phase==='verifying'?'正在校验':`${p??0}%`}/>}
    <Space wrap>
     <Button type="primary" disabled={disabled} onClick={check}>检查更新</Button>

@@ -1,3 +1,5 @@
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-export default defineConfig({plugins:[react()],server:{proxy:{'/api':'http://127.0.0.1:8765'}}});
+// @ts-expect-error Build-time JavaScript generator.
+import {generateTools} from './generate-tools.mjs';
+export default defineConfig({plugins:[react(),{name:'laura-offline-tools',async generateBundle(){if(!(globalThis as typeof globalThis & {process?:{env:Record<string,string>}}).process?.env.VITEST)for(const [file,source] of Object.entries(await generateTools()))this.emitFile({type:'asset',fileName:'tools/'+file,source:source as string});},async configureServer(server){if((globalThis as typeof globalThis & {process?:{env:Record<string,string>}}).process?.env.VITEST)return;let generated=generateTools();server.watcher.add('tools');server.watcher.on('change',file=>{if(file.includes('tools'))generated=generateTools();});server.middlewares.use(async(req,res,next)=>{const name=(req as {url?:string}).url?.split('?')[0]?.replace('/tools/','');if(!['port-buffer.html','packet-forwarding.html'].includes(name??''))return next();try{const pages=await generated;res.setHeader('Content-Type','text/html;charset=utf-8');res.end(pages[name!]);}catch(error){next(error);}});}}],server:{proxy:{'/api':'http://127.0.0.1:8765'}},test:{environment:'jsdom',setupFiles:['./src/tests/setup.ts'],include:['src/tests/**/*.test.tsx']}});

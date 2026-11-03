@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import sqlite3
 import threading
+import time
 import sys
 import uuid
 import httpx
@@ -97,7 +98,7 @@ class UpdateService:
         self._reconcile_helper()
         with self.lock:
             state=dict(self._state)
-        keys={'phase','message','completed','total','latest_version','notes','error_code','installed','rolled_back','original_preserved','restarted','restart_required','recovery_required'}
+        keys={'phase','message','completed','total','latest_version','notes','error_code','installed','rolled_back','original_preserved','restarted','restart_required','recovery_required','checked_at','cached','retry_at','discovery_source'}
         result={k:v for k,v in state.items() if k in keys}
         enabled=self.enabled()
         result.update(enabled=enabled,installed_version=installed_version(self.root),supported=self.supported,can_install=enabled and self.supported and state.get('phase')=='ready' and self.launcher_available())
@@ -118,9 +119,12 @@ class UpdateService:
                 raise UpdateServiceError(exc.code,exc.message) from exc
             if self.thread and self.thread.is_alive():return self.status()
             if self._state.get('phase')=='installing':raise UpdateServiceError('UPDATE_BUSY','正在安装更新，请等待重启完成')
-            for key in ('installed','rolled_back','original_preserved','restarted','restart_required','recovery_required'):
+            checked=self._state.get('checked_at')
+            if self._state.get('phase') in {'available','up_to_date'} and isinstance(checked,(float,int)) and 0<=time.time()-checked<60:
+                self._save(cached=True);return self.status()
+            for key in ('release','latest_version','notes','discovery_source','checked_at','installed','rolled_back','original_preserved','restarted','restart_required','recovery_required'):
                 self._state.pop(key,None)
-            self.cancelled.clear();self._save(phase='checking',message='正在检查新版',error_code=None,completed=0,total=0)
+            self.cancelled.clear();self._save(phase='checking',message='正在检查新版',error_code=None,cached=False,completed=0,total=0)
             if background:
                 self.thread=threading.Thread(target=self._check,name='Laura-release-download',daemon=True);self.thread.start()
             else:self._check()
@@ -129,8 +133,8 @@ class UpdateService:
     def _check(self):
         try:
             with self.client_factory() as client:
-                release=discover_latest(client,installed_version(self.root))
-                self._save(latest_version=release['version'],notes=release['notes'],release=release)
+                release=discover_latest(client,installed_version(self.root),rest_retry_at=self._state.get('retry_at'))
+                self._save(latest_version=release['version'],notes=release['notes'],release=release,checked_at=time.time(),cached=False,retry_at=self._state.get('retry_at') if (self._state.get('retry_at') or 0)>time.time() else None,discovery_source=release['discovery_source'])
                 if not release['available']:
                     self._save(phase='up_to_date',message='当前已是最新版本');return
                 self._save(phase='available',message='发现新版；点击“下载新版”后才会下载',completed=0,total=release['size'])
@@ -169,7 +173,8 @@ class UpdateService:
     def _failed(self,exc):
         code=getattr(exc,'code','UPDATE_CHECK_FAILED')
         message=getattr(exc,'message','更新服务暂时不可用，请检查网络后重试')
-        try:self._save(phase='paused' if code=='UPDATE_CANCELLED' else 'failed',message=message,error_code=code)
+        retry_at=getattr(exc,'retry_at',None) or self._state.get('retry_at')
+        try:self._save(retry_at=retry_at,phase='paused' if code=='UPDATE_CANCELLED' else 'failed',message=message,error_code=code)
         except (OSError,UpdateServiceError):pass
 
     def pause(self):

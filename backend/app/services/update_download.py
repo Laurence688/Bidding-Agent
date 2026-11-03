@@ -1,5 +1,10 @@
 """Explicit, credential-free downloads from the project's GitHub releases."""
 import hashlib
+import json
+import time
+from datetime import timezone
+from email.utils import parsedate_to_datetime
+import httpx
 from pathlib import Path
 import re
 import stat
@@ -9,11 +14,13 @@ from urllib.parse import urljoin, urlsplit
 RELEASES_URL='https://api.github.com/repositories/1440902300/releases?per_page=30'
 ASSET_NAME='Laura-Portable-Windows-x64.zip'
 MAX_ARCHIVE_BYTES=2*1024**3
+SIDECAR_URL='https://github.com/Laurence688/Bid-Agent/releases/latest/download/laura-update.json'
+MAX_MANIFEST_BYTES=65536
 
 
 class UpdateDownloadError(Exception):
-    def __init__(self,code,message):
-        self.code,self.message=code,message
+    def __init__(self,code,message,*,retry_at=None):
+        self.code,self.message,self.retry_at=code,message,retry_at
         super().__init__(message)
 
 
@@ -49,27 +56,93 @@ def _download_url(value):
     return value
 
 
-def discover_latest(client,current_version):
-    response=client.get(RELEASES_URL,headers={'Accept':'application/vnd.github+json','User-Agent':'Laura-Updater'},follow_redirects=False)
-    if response.status_code==403 or response.status_code==429:
-        raise UpdateDownloadError('UPDATE_RATE_LIMITED','更新服务暂时限制请求，请稍后重试')
+def _rate_limit(response):
+    if response.status_code!=429 and not (response.status_code==403 and
+            (response.headers.get('X-RateLimit-Remaining')=='0' or 'Retry-After' in response.headers)):
+        return None
+    now=time.time();retry=now+60
+    value=response.headers.get('Retry-After','')
+    try:retry=max(retry,now+int(value))
+    except ValueError:
+        try:retry=max(retry,parsedate_to_datetime(value).replace(tzinfo=timezone.utc).timestamp())
+        except (ValueError,TypeError,OverflowError):pass
+    try:retry=max(retry,int(response.headers.get('X-RateLimit-Reset','')))
+    except ValueError:pass
+    return UpdateDownloadError('UPDATE_RATE_LIMITED','更新服务暂时限制请求，请在冷却结束后重试',retry_at=retry)
+
+
+def validate_sidecar(payload,current_version):
+    """Reject invalid obtained metadata; callers must never fall back on this error."""
+    try:
+        if not isinstance(payload,dict) or type(payload.get('schema_version')) is not int or payload['schema_version']!=1:raise ValueError()
+        version=payload['version'];tag=payload['tag']
+        if payload['channel']!='stable' or not re.fullmatch(r'\d+\.\d+\.\d+-portable',version) or tag!='v'+version:raise ValueError()
+        parsed=urlsplit(_download_url(payload['url']))
+        if parsed.hostname!='github.com' or parsed.query or parsed.fragment:raise ValueError()
+        if parsed.path not in {'/Laurence688/'+repo+'/releases/download/'+tag+'/'+ASSET_NAME for repo in ('Bid-Agent','Bidding-Agent')}:raise ValueError()
+        if type(payload['size']) is not int or not 0<payload['size']<=MAX_ARCHIVE_BYTES:raise ValueError()
+        if not isinstance(payload['sha256'],str) or not re.fullmatch('[a-fA-F0-9]{64}',payload['sha256']):raise ValueError()
+        if not isinstance(payload['source_commit'],str) or not re.fullmatch('[a-fA-F0-9]{40}',payload['source_commit']):raise ValueError()
+        if not isinstance(payload['notes'],str) or len(payload['notes'])>12000:raise ValueError()
+        return {key:payload[key] for key in ('version','url','size','notes','source_commit')} | {'sha256':payload['sha256'].lower(),'available':version_tuple(version)>version_tuple(current_version),'discovery_source':'sidecar'}
+    except (KeyError,TypeError,ValueError,UpdateDownloadError) as exc:
+        raise UpdateDownloadError('UPDATE_MANIFEST_INVALID','更新清单校验失败，已停止；请使用完整便携包核验并迁移') from exc
+
+
+def _sidecar(client,current_version):
+    url=SIDECAR_URL
+    try:
+        for redirect in range(6):
+            with client.stream('GET',url,headers={'User-Agent':'Laura-Updater'},follow_redirects=False,timeout=10) as response:
+                if response.status_code in {301,302,303,307,308}:
+                    url=_download_url(urljoin(url,response.headers.get('Location','')));continue
+                if response.status_code in {404,410,408,429,500,502,503,504}:return None
+                if response.status_code!=200:
+                    raise UpdateDownloadError('UPDATE_FORBIDDEN' if response.status_code==403 else 'UPDATE_CHECK_FAILED','无法读取更新清单，请稍后重试')
+                body=bytearray()
+                for chunk in response.iter_bytes(8192):
+                    body.extend(chunk)
+                    if len(body)>MAX_MANIFEST_BYTES:raise UpdateDownloadError('UPDATE_MANIFEST_INVALID','更新清单过大，已停止')
+                try:payload=json.loads(body)
+                except (ValueError,UnicodeError) as exc:raise UpdateDownloadError('UPDATE_MANIFEST_INVALID','更新清单格式无效，已停止') from exc
+                return validate_sidecar(payload,current_version)
+        raise UpdateDownloadError('UPDATE_REDIRECT_LIMIT','更新清单重定向过多，已停止')
+    except httpx.TransportError:return None
+
+
+def discover_latest(client,current_version,*,rest_retry_at=None):
+    candidate=_sidecar(client,current_version)
+    if candidate is not None:return candidate
+    if rest_retry_at and time.time()<rest_retry_at:
+        raise UpdateDownloadError('UPDATE_RATE_LIMITED','REST 更新服务仍在冷却，请稍后重试',retry_at=rest_retry_at)
+    try:response=client.get(RELEASES_URL,headers={'Accept':'application/vnd.github+json','User-Agent':'Laura-Updater'},follow_redirects=False,timeout=10)
+    except httpx.TransportError as exc:raise UpdateDownloadError('UPDATE_CONNECTION_FAILED','无法连接更新服务，请检查网络后重试') from exc
+    limited=_rate_limit(response)
+    if limited:raise limited
+    if response.status_code==403:raise UpdateDownloadError('UPDATE_FORBIDDEN','更新服务拒绝访问（403），请稍后重试')
     if response.status_code!=200:raise UpdateDownloadError('UPDATE_CHECK_FAILED','暂时无法访问更新服务，请检查网络后重试')
-    rows=response.json()
-    if not isinstance(rows,list):raise UpdateDownloadError('UPDATE_CHECK_FAILED','更新服务返回格式无效')
+    try:rows=response.json()
+    except ValueError as exc:raise UpdateDownloadError('UPDATE_MANIFEST_INVALID','更新服务返回格式无效') from exc
+    if not isinstance(rows,list):raise UpdateDownloadError('UPDATE_MANIFEST_INVALID','更新服务返回格式无效')
     candidates=[]
     for row in rows:
-        if not isinstance(row,dict) or row.get('draft'):continue
-        try:version=version_tuple(row.get('tag_name',''))
-        except UpdateDownloadError:continue
-        for asset in row.get('assets',[]):
+        if not isinstance(row,dict) or row.get('draft') or row.get('prerelease'):continue
+        tag=row.get('tag_name','')
+        if not isinstance(tag,str) or not re.fullmatch(r'v\d+\.\d+\.\d+-portable',tag):continue
+        version=version_tuple(tag)
+        assets=row.get('assets',[])
+        if not isinstance(assets,list):continue
+        for asset in assets:
+            if not isinstance(asset,dict):continue
             digest=asset.get('digest') or ''
-            if asset.get('name')!=ASSET_NAME or not re.fullmatch(r'sha256:[a-fA-F0-9]{64}',digest):continue
+            if asset.get('name')!=ASSET_NAME or not isinstance(digest,str) or not re.fullmatch(r'sha256:[a-fA-F0-9]{64}',digest):continue
             size=asset.get('size')
             if type(size) is not int or not 0<size<=MAX_ARCHIVE_BYTES:continue
-            try:url=_download_url(asset.get('browser_download_url',''))
-            except (UpdateDownloadError,ValueError):continue
-            if urlsplit(url).hostname!='github.com':continue
-            candidates.append((version,{'version':row['tag_name'].removeprefix('v'),'url':url,'size':size,'sha256':digest[7:].lower(),'notes':str(row.get('body') or '')[:12000],'source_commit':row.get('target_commitish') if re.fullmatch(r'[a-fA-F0-9]{40}',str(row.get('target_commitish',''))) else None}))
+            try:
+                url=_download_url(asset.get('browser_download_url',''));parsed=urlsplit(url)
+                if parsed.hostname!='github.com' or parsed.query or parsed.fragment or parsed.path not in {'/Laurence688/'+repo+'/releases/download/'+tag+'/'+ASSET_NAME for repo in ('Bid-Agent','Bidding-Agent')}:continue
+            except (UpdateDownloadError,ValueError,TypeError):continue
+            candidates.append((version,{'version':tag.removeprefix('v'),'url':url,'size':size,'sha256':digest[7:].lower(),'notes':str(row.get('body') or '')[:12000],'discovery_source':'rest','source_commit':row.get('target_commitish') if re.fullmatch(r'[a-fA-F0-9]{40}',str(row.get('target_commitish',''))) else None}))
     if not candidates:raise UpdateDownloadError('UPDATE_NOT_AVAILABLE','暂未找到可验证的 Windows 便携更新，请稍后重试')
     candidate=max(candidates,key=lambda item:item[0])[1]
     candidate['available']=version_tuple(candidate['version'])>version_tuple(current_version)
