@@ -352,9 +352,9 @@ class ContextService:
             if manifest['references']:raw_text=manifest['references'][0]['text']
             messages=[{'role':'system','content':PROMPTS['TRANSLATION']},{'role':'user','content':canonical({'source':raw_text,'target_language':target_language,'untrusted_history':self.history(manifest,summary)})}]
         elif mode in {'SOC','SOC_SINGLE','SOC_BATCH'}:
-            from app.schemas.model_outputs import TranslationOutput
-            output=TranslationOutput;node='translate'
-            messages=render_prompt('translate',{'raw_text':raw_text,'history':self.history(manifest,summary)},output.model_json_schema(),bundle)[0]
+            from app.schemas.model_outputs import SplitOutput
+            output=SplitOutput;node='split_claims'
+            messages=render_prompt(node,{'raw_text':raw_text,'history':self.history(manifest,summary)},output.model_json_schema(),bundle)[0]
         else:messages=render_prompt('product_qa',{'raw_text':raw_text,'evidence':[],'history':self.history(manifest,summary)},output.model_json_schema(),bundle)[0]
         provider=ModelGateway(self.repo,models,{}).provider_for(ModelRequest('preview','qa','__clause__',node,[],output,'preview'),0)
         preview={**request_budget(messages,output.model_json_schema(),provider),'evidence_pending':mode!='TRANSLATION','note':'发送前估算，未含待检索证据','message_ids':manifest['message_ids'],'summary_id':manifest.get('summary_id')}

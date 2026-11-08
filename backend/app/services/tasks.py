@@ -14,6 +14,7 @@ class TaskService:
         self.repo, self.settings = repo, settings
 
     def config_snapshot(self, product_id, project_id=None, model_mode=None):
+        from app.workflows.soc_graph import SOC_WORKFLOW_VERSION
         from app.security.execution_policy import policy_for, models_for
         policy = policy_for(self.settings, model_mode)
         if policy['model_mode']=='cloud' and self.settings.models.get('active_generation_profile_id'):
@@ -40,7 +41,7 @@ class TaskService:
                 for ident in snapshot.get('child_snapshot_ids', []):
                     validate_local(self.repo.get('knowledge_snapshot', ident))
             validate_local(active)
-        payload = {'models': models_for(self.settings, policy['model_mode']), 'execution_policy': policy, 'prompts': PromptService(self.repo, self.settings).snapshot(), 'workflow_version': 'soc-parameter-scope-v6',
+        payload = {'models': models_for(self.settings, policy['model_mode']), 'execution_policy': policy, 'prompts': PromptService(self.repo, self.settings).snapshot(), 'workflow_version': SOC_WORKFLOW_VERSION,
             'processing': self.settings.processing,
             'product_naming_version':1, 'response_product_name':response_product_name(next((p for p in libraries.products() if p['id']==product_id),{})),
             'provenance': provenance(self.settings.root),

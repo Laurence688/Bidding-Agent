@@ -10,7 +10,8 @@ def model_source_context(source):
                                    for item in source.get('requirement_values', [])]}
 
 
-def context_query(source):
+def context_query(source, *, include_requirement_values=True):
     clean = model_source_context(source)
+    thresholds = {item['cell'] for item in clean.get('requirement_values', [])} if not include_requirement_values else set()
     return '\n'.join([item['raw_text'] for item in clean.get('preceding_context', [])] +
-                     [item['text'] for item in clean.get('adjacent_cells', [])])
+                     [item['text'] for item in clean.get('adjacent_cells', []) if item['cell'] not in thresholds])

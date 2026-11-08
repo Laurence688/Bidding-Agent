@@ -76,7 +76,8 @@ class EvaluationExecutor:
             retrieval = self.retriever or LibraryRetriever(self.repo, knowledge, LazyEmbedding(frozen), frozen, config['retrieval']['retrieval_top_k'], config['retrieval']['rrf_k'])
             case_started = time.monotonic()
             try:
-                result = SocWorkflow(self.repo, frozen, gateway, retrieval, knowledge, config['prompts']).run_clause(execution['id'], safe_input['raw_text'], context).model_dump(mode='json')
+                result = SocWorkflow(self.repo, frozen, gateway, retrieval, knowledge, config['prompts'],
+                                     workflow_version=config.get('workflow_version')).run_clause(execution['id'], safe_input['raw_text'], context).model_dump(mode='json')
                 result['status'] = 'failed' if result.get('diagnostics', {}).get('failure') else 'completed'
             except Exception as exc:
                 if isinstance(exc, DomainError) and exc.code == 'JOB_CANCELLED':

@@ -16,7 +16,7 @@ from app.domain.source_context import model_source_context, context_query
 from app.workflows.routing import product_conflicts, untrusted_instruction
 from app.rag.admission import admit_evidence
 from app.services.result_sources import source_label
-from app.domain.parameters import is_parameter_requirement, validate_parameter_values, needs_parameter_value, parameter_facts
+from app.domain.parameters import is_parameter_requirement, validate_parameter_values, needs_parameter_value, parameter_facts, missing_parameter_threshold
 from app.domain.response_contract import source_suffix, response_body
 from app.model_gateway.diagnostics import failure_category
 from app.domain.requirement_relations import project_fact_reason
@@ -25,28 +25,40 @@ from app.domain.retrieval_budget import supplement_reason, bound_candidates
 SUPPLEMENT_REASONS = {'EVIDENCE_MISSING', 'INSUFFICIENT_EVIDENCE', 'EVIDENCE_INSUFFICIENT', 'STANDARD_DRAFT_ONLY'}
 
 
+def _claim_content(claim):
+    return {k: v for k, v in claim.items() if k not in {'id', 'clause_id', 'source_spans'}}
+
+
 class SocNodes:
-    def __init__(self, repo, settings, gateway, retriever, knowledge, prompt_bundle=None):
+    def __init__(self, repo, settings, gateway, retriever, knowledge, prompt_bundle=None, *, original_input=False):
         self.repo, self.settings, self.gateway = repo, settings, gateway
         self.retriever, self.knowledge, self.prompt_bundle = retriever, knowledge, prompt_bundle
+        self.original_input = original_input
 
     def call(self, state, node, data, output_model, claim_id='__clause__'):
         ctx = RunContext.model_validate(state['context'])
         data = dict(data)
+        if self.original_input and node in {'judge_claim', 'verify_semantic_support'}:
+            claim = data['claim']
+            data['claim'] = _claim_content(claim)
+            if 'claims' in claim:
+                data['claim']['claims'] = [_claim_content(item) for item in claim['claims']]
+            data['evidence'] = [{k: v for k, v in ref.items() if k != 'id'} for ref in data['evidence']]
         original_context = model_source_context(ctx.source_context)
         if original_context and 'source_context' in ALLOWED[node]:
             data['source_context'] = original_context
         if ctx.lifecycle_context.reference_date and 'lifecycle_context' in ALLOWED[node]:
             data['lifecycle_context'] = ctx.lifecycle_context.model_dump(mode='json')
         messages, fingerprint = render_prompt(node, data, output_model.model_json_schema(), self.prompt_bundle)
-        run=self.repo.get('run',ctx.run_id)
+        run = {} if ctx.mode == 'EVALUATION' else self.repo.get('run', ctx.run_id)
         if run.get('context_manifest'):
             from app.services.context_management import ContextService
             config=self.repo.get('config_snapshot',ctx.config_snapshot_id)
             messages=ContextService(self.repo,self.settings).prepare_messages(run,config,self.gateway,node,output_model,data,
                 lambda values,history:render_prompt(node,{**values,'history':history},output_model.model_json_schema(),self.prompt_bundle)[0],state['clause_id'],claim_id)
         kind = 'supplement' if state.get('supplement_count') and node in {'judge_claim', 'verify_semantic_support'} and claim_id != '__output__' else 'initial'
-        result = self.gateway.invoke(ModelRequest(ctx.run_id, state['clause_id'], claim_id, node, messages, output_model, ctx.config_snapshot_id, call_kind=kind))
+        result = self.gateway.invoke(ModelRequest(ctx.run_id, state['clause_id'], claim_id, node, messages, output_model,
+                                                 ctx.config_snapshot_id, call_kind=kind, retry_invalid_output=self.original_input))
         if result.error_code:
             raise DomainError(result.error_code, '模型节点未完成，请查看执行原因', 503)
         return result.payload
@@ -141,7 +153,10 @@ class SocNodes:
         return {'translation_zh': result['translation_zh']}
 
     def split_claims(self, state):
-        payload = self.call(state, 'split_claims', {'raw_text': state['raw_text'], 'translation_zh': state.get('translation_zh', '')}, SplitOutput)
+        data = {'raw_text': state['raw_text']}
+        if not self.original_input:
+            data['translation_zh'] = state.get('translation_zh', '')
+        payload = self.call(state, 'split_claims', data, SplitOutput)
         claims, diagnostic = resolve_claims(state['raw_text'], payload['claims'], state['clause_id'])
         complete = diagnostic['coverage_complete']
         return {'claims': [c.model_dump(mode='json') for c in claims], 'coverage_complete': complete,
@@ -161,26 +176,34 @@ class SocNodes:
             claim = Claim.model_validate(item)
             gap = state.get('assessments_by_claim', {}).get(claim.id, {}).get('explanation', '') if supplement else ''
             query = claim.text
-            source_text = context_query(ctx.get('source_context', {}))
+            source_context = ctx.get('source_context', {})
+            parameter_search = self.original_input and needs_parameter_value(claim.text, source_context, len(state['claims']))
+            source_text = context_query(source_context, include_requirement_values=not parameter_search)
             if source_text:
                 query += '\nOriginal sheet context: ' + source_text
-            if is_parameter_requirement(claim.text, ctx.get('source_context')):
+            if not self.original_input and is_parameter_requirement(claim.text, source_context):
                 query += '\nParameter capacity: prefer Feature List actual supported values, units and applicable conditions.'
             if supplement:
                 query += '\nEvidence gap: ' + gap[:600]
                 if re.search(r'\b(?:IEEE|IETF|RFC|standard)\b', claim.text, re.I):
                     query += '\nEvidence for the standard and scope explicitly requested; Internet-Draft is not a published RFC.'
             query_claim = claim.model_copy(update={'text': query})
-            refs = self.retriever.retrieve(query_claim, ctx['product_id'], ctx['knowledge_snapshot_id'], supplement=supplement) if ctx.get('knowledge_snapshot_id') else []
+            policy = getattr(self.settings, 'processing', {})
+            character_limit = policy.get('evidence_max_characters', 12000)
+            options = {'prefer_features': True, 'max_characters': character_limit} if parameter_search else {}
+            refs = self.retriever.retrieve(query_claim, ctx['product_id'], ctx['knowledge_snapshot_id'],
+                                           supplement=supplement, **options) if ctx.get('knowledge_snapshot_id') else []
             new_refs = [ref.model_dump(mode='json') for ref in refs]
             old = candidates.get(claim.id, []) if supplement else []
-            policy = getattr(self.settings, 'processing', {})
             candidates[claim.id], budget = bound_candidates(new_refs, old,
-                limit=policy.get('candidate_limit', 8), max_characters=policy.get('evidence_max_characters', 12000),
-                prefer_features=is_parameter_requirement(claim.text, ctx.get('source_context')))
+                limit=policy.get('candidate_limit', 8), max_characters=character_limit,
+                prefer_features=not self.original_input and is_parameter_requirement(claim.text, source_context),
+                partition_features=parameter_search)
             previous = diagnostics.get(claim.id, {})
             diagnostics[claim.id] = {**previous, 'queries': [*previous.get('queries', []),
-                {'query': query, 'supplement': supplement, 'gap': gap, 'candidate_chunk_ids': [r.chunk_id for r in refs], 'budget': budget}],
+                {'query': query, 'supplement': supplement, 'gap': gap,
+                 **({'feature_list_first': parameter_search} if self.original_input else {}),
+                 'candidate_chunk_ids': [r.chunk_id for r in refs], 'budget': budget}],
                 'new_selected_chunk_ids': [r['chunk_id'] for r in candidates[claim.id] if r['chunk_id'] not in {v['chunk_id'] for v in old}]}
         return {'candidates_by_claim': candidates, 'retrieval_diagnostics': diagnostics}
 
@@ -212,12 +235,18 @@ class SocNodes:
             cid = claim['id']
             if cid not in state['work_ids']:
                 continue
+            source_context = state['context'].get('source_context')
+            parameter_required = needs_parameter_value(claim['text'], source_context, len(state['claims']))
+            if self.original_input and parameter_required and missing_parameter_threshold(claim['text'], source_context):
+                assessments[cid] = ClaimAssessment(claim_id=cid, verdict='UNKNOWN', reason_code='REQUIREMENT_VALUE_MISSING',
+                    explanation='No comparison threshold in the clause or mapped requirement values.',
+                    gap_type='requirement_input').model_dump(mode='json')
+                continue
             evidence = state['admitted_by_claim'].get(cid, [])
             if not evidence:
                 reasons = state['excluded_reasons'].get(cid, [])
                 assessments[cid] = ClaimAssessment(claim_id=cid, verdict='UNKNOWN', reason_code=reasons[0] if reasons else 'EVIDENCE_MISSING', explanation='No admissible evidence.').model_dump(mode='json')
                 continue
-            parameter_required = needs_parameter_value(claim['text'], state['context'].get('source_context'), len(state['claims']))
             payload = self.call(state, 'judge_claim', {'claim': claim, 'evidence': evidence,
                 'parameter_values_required': parameter_required}, JudgeOutput, cid)
             allowed = {e['chunk_id']: e for e in evidence}
@@ -231,6 +260,11 @@ class SocNodes:
                 refs.append(ref)
             if not valid or (payload['verdict'] != 'UNKNOWN' and not refs):
                 payload.update(verdict='UNKNOWN', reason_code='CITATION_INVALID')
+            if self.original_input and parameter_required and payload['verdict'] == 'UNKNOWN' and (
+                payload.get('reason_code') == 'REQUIREMENT_VALUE_MISSING'
+                or supplement_reason(payload) == 'GAP_REQUIREMENT_INPUT'
+            ):
+                payload.update(reason_code='REQUIREMENT_VALUE_MISSING', gap_type='requirement_input')
             supplied_values = payload.get('parameter_values', [])
             values = parameter_facts(supplied_values) if parameter_required else []
             parameter_issues = []
@@ -317,11 +351,18 @@ class SocNodes:
             return {'response_en': NC_RESPONSE}
         if state['decision'] == 'UNKNOWN':
             return {'response_en': None}
-        payload = self.call(state, 'render_response', {'decision': state['decision'], 'claims': state['claims'], 'assessments': state['assessments'],
-                            'product_id': getattr(self.settings,'response_product_name',state['context']['product_id'])}, RenderOutput)
-        if set(payload['addressed_claim_ids']) != {c['id'] for c in state['claims']}:
+        claims, assessments = state['claims'], state['assessments']
+        ids = {claim['id']: f'SOC_CLAIM_{index}' if self.original_input else claim['id']
+               for index, claim in enumerate(claims, 1)}
+        if self.original_input:
+            claims = [{**_claim_content(c), 'id': ids[c['id']]} for c in claims]
+        payload = self.call(state, 'render_response', {'decision': state['decision'],
+                             'claims': claims,
+                             'assessments': [{**a, 'claim_id': ids[a['claim_id']]} for a in assessments],
+                             'product_id': getattr(self.settings,'response_product_name',state['context']['product_id'])}, RenderOutput)
+        if set(payload['addressed_claim_ids']) != set(ids.values()):
             return {'fatal': 'OUTPUT_INVALID', 'decision': 'UNKNOWN', 'response_en': None, 'reason_codes': ['OUTPUT_INVALID']}
-        gaps = {a['claim_id'] for a in state['assessments'] if a['verdict'] == 'CONTRADICTED'}
+        gaps = {ids[a['claim_id']] for a in assessments if a['verdict'] == 'CONTRADICTED'}
         if set(payload['gap_sentences']) != gaps or any(not str(v).strip() for v in payload['gap_sentences'].values()):
             return {'fatal': 'OUTPUT_INVALID', 'decision': 'UNKNOWN', 'response_en': None, 'reason_codes': ['OUTPUT_INVALID']}
         text = payload['response_en']

@@ -6,6 +6,8 @@ from app.workflows.nodes import SocNodes
 from app.persistence.checkpoints import sqlite_checkpointer
 from app.schemas.core import ClauseResult
 
+SOC_WORKFLOW_VERSION = 'soc-original-evidence-v7'
+
 
 class SocState(TypedDict, total=False):
     raw_text: str
@@ -35,13 +37,16 @@ class SocState(TypedDict, total=False):
 
 
 class SocWorkflow:
-    def __init__(self, repo, settings, gateway, retriever, knowledge, prompt_bundle=None):
+    def __init__(self, repo, settings, gateway, retriever, knowledge, prompt_bundle=None, *, workflow_version=None):
         self.repo, self.settings = repo, settings
-        self.nodes = SocNodes(repo, settings, gateway, retriever, knowledge, prompt_bundle)
+        self.original_input = workflow_version == SOC_WORKFLOW_VERSION
+        self.nodes = SocNodes(repo, settings, gateway, retriever, knowledge, prompt_bundle, original_input=self.original_input)
 
     def build(self, saver):
         graph = StateGraph(SocState)
-        sequence = ['validate_input', 'translate', 'split_claims', 'retrieve', 'admit_evidence', 'judge_claim', 'verify_citations', 'verify_semantic_support']
+        sequence = ['validate_input', 'split_claims', 'retrieve', 'admit_evidence', 'judge_claim', 'verify_citations', 'verify_semantic_support']
+        if not self.original_input:
+            sequence.insert(1, 'translate')
         ending = ['aggregate', 'render_response', 'validate_output', 'commit_result']
         for name in [*sequence, 'supplement_retrieve', *ending]:
             graph.add_node(name, lambda state, node=name: self.nodes.run_node(node, state))

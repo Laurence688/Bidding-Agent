@@ -5,6 +5,7 @@ from app.domain.identifiers import canonical
 from app.domain.errors import DomainError
 from app.rag.indexes import lexical_tokens, build_vectors, rrf, exact_terms
 from app.domain.parameters import is_parameter_requirement
+from app.domain.retrieval_budget import select_feature_candidates
 
 
 class HybridRetriever:
@@ -51,7 +52,7 @@ class HybridRetriever:
                 self.knowledge.activate(snapshot_id)
         return manifest
 
-    def retrieve(self, claim, product_id, snapshot_id, supplement=False):
+    def retrieve(self, claim, product_id, snapshot_id, supplement=False, *, prefer_features=False, collect_pools=False):
         snapshot = self.repo.get('knowledge_snapshot', snapshot_id)
         if snapshot['product_id'] != product_id:
             raise DomainError('PRODUCT_CONFLICT', '知识快照与任务型号不一致', 422)
@@ -73,6 +74,9 @@ class HybridRetriever:
             with vector_path.open('rb') as stream:
                 return faiss.read_index(faiss.PyCallbackIOReader(stream.read))
         with index_pool(str(self.repo.data_dir)).acquire(key,load_index,stat.st_size) as index:
+            if prefer_features:
+                feature, other = self._parameter_search(index, query, claim.text, snapshot, manifest, count)
+                return feature + other if collect_pools else select_feature_candidates(feature, other, count)
             _, positions = index.search(query, min(count * 3, len(manifest['chunk_ids'])))
         vector_ids = [manifest['chunk_ids'][int(i)] for i in positions[0] if i >= 0]
         terms = list(dict.fromkeys(lexical_tokens(claim.text).split()))[:64]
@@ -95,3 +99,42 @@ class HybridRetriever:
             refs.sort(key=lambda ref: ref.document_type != 'feature_list')
             return refs[:count]
         return [self.knowledge.evidence(ident) for ident in merged[:count]]
+
+    def _parameter_search(self, index, query, text, snapshot, manifest, count):
+        ids = manifest['chunk_ids']
+        with self.repo.connection() as db:
+            rows = db.execute("""SELECT c.id, json_extract(s.data,'$.document_type') AS document_type
+                FROM records c JOIN records s ON c.parent_id=s.id
+                WHERE c.kind='chunk' AND c.deleted=0 AND c.user_id=?
+                AND s.kind='source_version' AND s.deleted=0 AND s.user_id=c.user_id
+                AND s.id IN (SELECT value FROM json_each(?))
+                AND json_extract(s.data,'$.product_id')=? AND json_extract(s.data,'$.status')='valid'""",
+                (self.repo.local_user_id, canonical(snapshot['source_version_ids']), snapshot['product_id']))
+            types = {row['id']: row['document_type'] for row in rows}
+            pools = {True: [], False: []}
+            for position, ident in enumerate(ids):
+                if ident in types:
+                    pools[types[ident] == 'feature_list'].append(position)
+            terms = list(dict.fromkeys(lexical_tokens(text).split()))[:64]
+            expression = ' OR '.join('"' + term.replace('"', '""') + '"' for term in terms)
+            ranked = {}
+            for is_feature, positions in pools.items():
+                if not positions:
+                    ranked[is_feature] = []
+                    continue
+                selector = faiss.IDSelectorBatch(np.asarray(positions, dtype=np.int64))
+                _, found = index.search(query, min(count * 3, len(positions)), params=faiss.SearchParameters(sel=selector))
+                vectors = [ids[i] for i in found[0] if i >= 0]
+                allowed = {ids[i] for i in positions}
+                lexical = []
+                if expression:
+                    lexical = [row['chunk_id'] for row in db.execute("""SELECT f.chunk_id FROM chunk_fts f
+                        JOIN records c ON c.id=f.chunk_id JOIN records s ON c.parent_id=s.id
+                        WHERE chunk_fts MATCH ? AND f.product_id=? AND f.snapshot_id=?
+                        AND c.deleted=0 AND s.deleted=0 AND json_extract(s.data,'$.status')='valid'
+                        AND (json_extract(s.data,'$.document_type') IS 'feature_list')=?
+                        ORDER BY bm25(chunk_fts), f.chunk_id LIMIT ?""",
+                        (expression, snapshot['product_id'], snapshot['id'], int(is_feature), count * 3)) if row['chunk_id'] in allowed]
+                exact = [ident for term in exact_terms(text) for ident in manifest.get('exact_terms', {}).get(term, []) if ident in allowed]
+                ranked[is_feature] = list(dict.fromkeys(exact + rrf([lexical, vectors], self.rrf_k)))[:count]
+        return tuple([self.knowledge.evidence(ident) for ident in ranked[kind]] for kind in (True, False))

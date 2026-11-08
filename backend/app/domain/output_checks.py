@@ -50,6 +50,10 @@ def response_issues(result, product_id, products):
     issues = []
     if not text.strip():
         issues.append('EMPTY_RESPONSE')
+    if re.search(r'\bSOC_CLAIM_\d+\b', text, re.I) or any(
+        len(c.id) == 36 and c.id.lower() in text.lower() for c in result.claims
+    ):
+        issues.append('INTERNAL_CLAIM_ID_IN_RESPONSE')
     if re.search(r'[\u4e00-\u9fff]', text):
         issues.append('BODY_LANGUAGE_OR_SOURCE_FORMAT')
     if product_conflicts(text, product_id, products):

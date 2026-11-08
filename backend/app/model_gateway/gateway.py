@@ -11,6 +11,8 @@ from app.security.redaction import redact
 from app.model_gateway.diagnostics import failure_category
 from app.domain.errors import DomainError
 
+RETRYABLE_OUTPUT_ERRORS = {'OUTPUT_TRUNCATED', 'OUTPUT_INVALID'}
+
 
 class ModelGateway:
     def __init__(self, repo, config, secrets, transport=None, sleeper=time.sleep, policy=None):
@@ -74,14 +76,26 @@ class ModelGateway:
         with self.repo.connection() as db:
             return [{**dict(row), **json.loads(row['data'])} for row in db.execute(sql + ' ORDER BY rowid', params)]
 
-    def reserve_attempt(self, request, role=None, invocation_id=None, invocation_attempt=1):
+    def reserve_attempt(self, request, role=None, invocation_id=None, invocation_attempt=1, retry_of=None, expected_count=None):
         with self.repo.transaction() as db:
             count = len(self.attempts(request))
+            if expected_count is not None and count != expected_count:
+                return None
             if self.budget_exhausted(request):
                 return None
             # 请求哈希仅用于审计；不能加入预算主键，否则补检索会刷新预算。
             role = 'primary' if count < 2 else 'backup'
             provider = self.provider_for(request, count)
+            if provider is None:
+                return None
+            if retry_of:
+                already_retried = db.execute("""SELECT 1 FROM model_attempts WHERE run_id=? AND clause_id=?
+                    AND json_extract(data,'$.retry_of_attempt_id') IS NOT NULL LIMIT 1""",
+                    (request.run_id, request.clause_id)).fetchone()
+                if already_retried or (provider['provider'], provider['model_id'], role) != (
+                    retry_of['provider'], retry_of['model'], retry_of['role']
+                ) or provider['max_output_tokens'] != retry_of['provider_settings']['max_output_tokens']:
+                    return None
             ident = new_id()
             data = {'started_at': utc_now(), 'role': role, 'messages': redact(request.messages, self.secret_values),
                     'invocation_id': invocation_id or new_id(), 'invocation_attempt': invocation_attempt, 'call_kind': request.call_kind,
@@ -89,6 +103,8 @@ class ModelGateway:
                     'schema_hash': content_hash(request.output_model.model_json_schema()), 'config_version': request.config_version,
                     'usage': None, 'latency': None,
                     'provider_settings': {key: provider.get(key) for key in ['thinking_mode', 'max_output_tokens', 'timeout']}}
+            if retry_of:
+                data['retry_of_attempt_id'] = retry_of['attempt_id']
             db.execute('INSERT INTO model_attempts(attempt_id,run_id,clause_id,claim_id,logical_node_name,attempt_index,provider,model,request_hash,status,data) VALUES(?,?,?,?,?,?,?,?,?,?,?)', (ident, request.run_id, request.clause_id,
                 request.claim_id, request.logical_node_name, count + 1, provider['provider'], provider['model_id'],
                 content_hash(request.messages), 'in_flight', canonical(data)))
@@ -97,24 +113,53 @@ class ModelGateway:
     def invoke(self, request):
         identifiers = []
         invocation_id = new_id()
+        schema = request.output_model.model_json_schema()
+        request_hash = content_hash(request.messages) if request.retry_invalid_output else None
+        schema_hash = content_hash(schema) if request.retry_invalid_output else None
         while True:
-            count = len(self.attempts(request))
+            attempts = self.attempts(request)
+            count = len(attempts)
+            retry_of = None
+            invocation_attempt = len(identifiers) + 1
+            if request.retry_invalid_output:
+                matching = [a for a in attempts if a['request_hash'] == request_hash
+                            and a.get('schema_hash') == schema_hash
+                            and a.get('config_version') == request.config_version
+                            and a.get('call_kind') == request.call_kind]
+                if matching:
+                    previous = matching[-1]
+                    if previous['status'] == 'succeeded':
+                        try:
+                            payload = request.output_model.model_validate(previous['validated_payload']).model_dump(mode='json')
+                        except (ValueError, KeyError, IndexError, TypeError):
+                            return ModelResult(error_code='OUTPUT_INVALID', attempt_ids=[previous['attempt_id']])
+                        return ModelResult(payload=payload, attempt_ids=[previous['attempt_id']], stop_reason=previous['stop_reason'])
+                    if previous['status'] == 'in_flight':
+                        return ModelResult(error_code='ATTEMPT_INTERRUPTED', attempt_ids=[previous['attempt_id']])
+                    code = previous.get('error_code')
+                    if code in RETRYABLE_OUTPUT_ERRORS and not previous.get('retry_of_attempt_id'):
+                        retry_of = previous
+                    elif previous.get('diagnostics', {}).get('retry_policy') != 'bounded_transient_only':
+                        return ModelResult(error_code=code or 'ATTEMPT_INTERRUPTED', attempt_ids=[previous['attempt_id']])
+                    invocation_id = previous['invocation_id']
+                    invocation_attempt = previous['invocation_attempt'] + 1
             if count>=2 and self.config.get('active_generation_profile_id'):
-                return ModelResult(error_code=self.attempts(request)[-1].get('error_code') or 'ATTEMPT_BUDGET_EXHAUSTED',attempt_ids=identifiers)
+                return ModelResult(error_code=attempts[-1].get('error_code') or 'ATTEMPT_BUDGET_EXHAUSTED',attempt_ids=identifiers)
             if self.budget_exhausted(request):
-                return ModelResult(error_code='ATTEMPT_BUDGET_EXHAUSTED', attempt_ids=identifiers)
+                return ModelResult(error_code=retry_of['error_code'] if retry_of else 'ATTEMPT_BUDGET_EXHAUSTED', attempt_ids=identifiers)
             if count >= 3:
                 return ModelResult(error_code='ATTEMPT_BUDGET_EXHAUSTED', attempt_ids=identifiers)
+            if retry_of and count >= 2 and retry_of['role'] == 'primary':
+                return ModelResult(error_code=retry_of['error_code'], attempt_ids=identifiers)
             provider = self.provider_for(request, count)
             if provider is None:
-                return ModelResult(error_code='NO_ALLOWED_BACKUP', attempt_ids=identifiers)
+                return ModelResult(error_code=retry_of['error_code'] if retry_of else 'NO_ALLOWED_BACKUP', attempt_ids=identifiers)
             if self.policy is not None:
                 from app.security.execution_policy import assert_endpoint_allowed
                 try:
                     assert_endpoint_allowed(self.policy() if callable(self.policy) else self.policy, provider['base_url'], 'generation')
                 except Exception as exc:
                     return ModelResult(error_code=getattr(exc, 'code', 'EXECUTION_POLICY_ERROR'), attempt_ids=identifiers)
-            schema = request.output_model.model_json_schema()
             request_context=self.record_context(request,provider)
             estimated = request_context['total_tokens']
             if provider.get('provider') != 'llama_cpp' and estimated > provider['context_limit']:
@@ -125,9 +170,11 @@ class ModelGateway:
                 return ModelResult(error_code='MODEL_CONFIG_MISSING', attempt_ids=identifiers)
             # 不让配置中的凭据意外出现在发送数据中。
             safe_messages = redact(request.messages, self.secret_values)
-            reserved = self.reserve_attempt(request, invocation_id=invocation_id, invocation_attempt=len(identifiers) + 1)
+            reserved = self.reserve_attempt(request, invocation_id=invocation_id, invocation_attempt=invocation_attempt,
+                retry_of=retry_of, expected_count=count if request.retry_invalid_output else None)
             if reserved is None:
-                return ModelResult(error_code='ATTEMPT_BUDGET_EXHAUSTED', attempt_ids=identifiers)
+                self.repo.update('request_context', request_context['id'], {'status': 'blocked', 'error_code': 'ATTEMPT_BUDGET_EXHAUSTED'})
+                return ModelResult(error_code=retry_of['error_code'] if retry_of else 'ATTEMPT_BUDGET_EXHAUSTED', attempt_ids=identifiers)
             ident, provider = reserved['attempt_id'], reserved['provider']
             self.repo.update('request_context',request_context['id'],{'status':'in_flight','sent':True,'attempt_id':ident})
             identifiers.append(ident)
@@ -170,10 +217,14 @@ class ModelGateway:
                 'response': redact(raw, self.secret_values), 'error_code': code, 'stop_reason': stop,
                 'diagnostics': {'output_characters': len(output_text), 'json_valid': json_valid, 'schema_valid': payload is not None,
                                 'schema_errors': schema_errors, 'failure_category': failure_category(code),
-                                'retry_policy': 'bounded_transient_only' if transient else 'no_automatic_retry'},
+                                'retry_policy': 'soc_output_retry' if retry_of else 'bounded_transient_only' if transient else
+                                'soc_output_retry_eligible' if request.retry_invalid_output and code in RETRYABLE_OUTPUT_ERRORS else 'no_automatic_retry'},
                 'context_estimate': estimated if provider.get('provider') != 'llama_cpp' else None,
                 'context_estimate_is_estimate': provider.get('provider') != 'llama_cpp',
                 'local_context': raw.get('local_context') if isinstance(raw, dict) else local_context}
+            safe_payload = redact(payload, self.secret_values)
+            if request.retry_invalid_output and code is None:
+                data['validated_payload'] = safe_payload
             with self.repo.transaction() as db:
                 db.execute('UPDATE model_attempts SET status=?,data=? WHERE attempt_id=?', ('failed' if code else 'succeeded', canonical(data), ident))
                 usage=data['usage']
@@ -187,7 +238,11 @@ class ModelGateway:
                     except (DomainError, OSError, ValueError):
                         # A readiness display write must not turn valid model output into failure.
                         pass
-                return ModelResult(payload=redact(payload, self.secret_values), attempt_ids=identifiers, stop_reason=stop)
+                return ModelResult(payload=safe_payload, attempt_ids=identifiers, stop_reason=stop)
+            if request.retry_invalid_output and code in RETRYABLE_OUTPUT_ERRORS and not retry_of:
+                continue
+            if retry_of:
+                return ModelResult(error_code=code, attempt_ids=identifiers, stop_reason=stop)
             if not transient:
                 return ModelResult(error_code=code, attempt_ids=identifiers, stop_reason=stop)
             self.sleeper(min(0.25 * reserved['index'], 1.0))

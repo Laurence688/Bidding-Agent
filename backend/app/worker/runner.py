@@ -181,7 +181,8 @@ class WorkerRunner:
                 self._message(run, answer.answer, answer.model_dump(mode='json'))
                 self.repo.update('job', job['id'], {'processed_items': 1})
             return
-        workflow = SocWorkflow(self.repo, frozen_settings, gateway, retrieval, knowledge, config['prompts'])
+        workflow = SocWorkflow(self.repo, frozen_settings, gateway, retrieval, knowledge, config['prompts'],
+                               workflow_version=config.get('workflow_version'))
         completed, conflicts = 0, False
         for binding in bindings:
             if self.repo.get('job', job['id']).get('cancel_requested'):

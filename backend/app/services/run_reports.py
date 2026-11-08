@@ -78,6 +78,7 @@ class RunReportService:
                 json_extract(data,'$.call_kind') AS call_kind,
                 json_extract(data,'$.invocation_id') AS invocation_id,
                 json_extract(data,'$.invocation_attempt') AS invocation_attempt,
+                json_extract(data,'$.retry_of_attempt_id') AS retry_of_attempt_id,
                 json_extract(data,'$.usage') AS usage,json_extract(data,'$.latency') AS latency,
                 json_extract(data,'$.error_code') AS error_code,json_extract(data,'$.started_at') AS started_at,
                 json_extract(data,'$.ended_at') AS ended_at,json_extract(data,'$.context_estimate') AS context_estimate,

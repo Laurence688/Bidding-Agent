@@ -89,7 +89,11 @@ class ModelExperimentService:
                 policy=live_policy)
             cases = []
             for case in spec['cases']:
-                messages, _ = render_prompt('split_claims', {k: case[k] for k in ['raw_text', 'translation_zh']}, SplitOutput.model_json_schema(), spec['config']['prompts'])
+                from app.workflows.soc_graph import SOC_WORKFLOW_VERSION
+                data = {'raw_text': case['raw_text']}
+                if spec['config'].get('workflow_version') != SOC_WORKFLOW_VERSION:
+                    data['translation_zh'] = case['translation_zh']
+                messages, _ = render_prompt('split_claims', data, SplitOutput.model_json_schema(), spec['config']['prompts'])
                 request = ModelRequest(manifest_id, case['clause_id'], '__clause__', 'split_claims', messages, SplitOutput, spec['config']['id'])
                 old = gateway.attempts(request)
                 if old:

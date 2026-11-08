@@ -17,6 +17,7 @@ class ModelRequest:
     operation_budget_id: str | None = None
     operation_max_attempts: int | None = None
     max_output_tokens: int | None = None
+    retry_invalid_output: bool = False
 
 
 @dataclass

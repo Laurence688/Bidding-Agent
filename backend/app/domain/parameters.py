@@ -35,6 +35,17 @@ def needs_parameter_value(text, context, claim_count):
     return row_parameter and (claim_count == 1 or not boolean_support)
 
 
+def missing_parameter_threshold(text, context):
+    """Catch explicit Excel min/max labels that name a metric but supply no bound."""
+    if not re.match(r'^\s*(?:the\s+)?(?:minimum|maximum)\s+(?:number\b|(?:[\w/-]+\s+){0,4}(?:capacity|count|rack units)\b)', text, re.I):
+        return False
+    inline = re.sub(r'\b(?:IEEE|RFC)\s*[\d.]+[a-z]*\b', '', text, flags=re.I)
+    supplied = [inline, *(value.get('raw_value', '') for value in (context or {}).get('requirement_values', []))]
+    return not any(re.search(r'(?<![\w.])\d|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|'
+                             r'(?:thir|four|fif|six|seven|eigh|nine)teen|twenty|thirty|forty|fifty|sixty|seventy|'
+                             r'eighty|ninety|hundred|thousand|million|billion|same as)\b', value, re.I) for value in supplied)
+
+
 def literal_value_in(value, text):
     # Boundaries prevent requested 512 from matching a supported value of 5120.
     return bool(value.strip()) and bool(re.search(r'(?<![\w.])' + re.escape(value.strip()) + r'(?!\w|\.\d)', text))

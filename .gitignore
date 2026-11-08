@@ -1,6 +1,7 @@
 # User content and runtime state
 /data/
 /outputs/
+/problems/
 /.env
 /.env.*
 !/.env.example

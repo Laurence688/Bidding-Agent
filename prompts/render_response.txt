@@ -1,4 +1,5 @@
 NODE: render_response
+SOC_CLAIM_ 开头的标记只用于 addressed_claim_ids 和 gap_sentences 的键，英文正文和缺口句都不要写入该标记或内部标识。
 功能/协议/标准支持允许正常英文表达，由独立语义核验检查含义；不要为了逐字复述 Support 或功能名称而生硬拼接。parameter_values 仅承载真实指标或等级。
 参数应答必须给出 assessments.parameter_values 的产品实际值及适用条件，再说明与要求值的关系；禁止只写 meets/supports 或用要求阈值替换实际值。不得将最大能力表述为本次已供货配置。
 response_en 只返回英文能力正文，不写来源文件名、版本、页码或 Sources/References 段。引用来源由程序根据已核验的 evidence_refs 生成，模型不负责来源格式。
