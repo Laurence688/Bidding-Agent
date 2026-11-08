@@ -5,7 +5,7 @@
 便携版面向 Windows 10/11（64 位），已内置 Python 3.11.17、Node.js 24.18.0、后端依赖和已构建网页，无需单独安装 Python、Node 或 npm，也不修改系统 PATH。首次使用仍需联网下载 Embedding 模型，模型服务账号和业务知识库由使用者自行配置。
 
 <!-- LAURA-PREVIEWS:START -->
-[下载 Windows 免安装包](https://github.com/Laurence688/Bidding-Agent/releases) · [完整使用指南](doc/00-使用指南/00-入门总览.md) · [观看功能演示](frontend/public/media/laura-demo.mp4)
+[下载 Windows 免安装包](https://github.com/Laurence688/Bidding-Agent/releases) · [完整使用指南](doc/00-使用指南/00-入门总览.md) · [文档中心](doc/README.md) · [观看功能演示](frontend/public/media/laura-demo.mp4)
 
 ## 界面与主要流程
 

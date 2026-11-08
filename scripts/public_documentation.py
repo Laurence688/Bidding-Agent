@@ -6,9 +6,33 @@ removed; current tables, contracts, diagrams and operational instructions surviv
 import posixpath
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
-VERSION = 'v0.4.2'
-CATEGORIES = ('00-使用指南', '01-产品与路线', '02-架构与技术')
+VERSION = 'v0.4.6'
+GUIDE_CAPTURE_VERSION = 'v0.4.2'
+PUBLIC_SOURCE_DOCS = (
+    '00-使用指南/00-入门总览.md',
+    '00-使用指南/01-模型准备.md',
+    '00-使用指南/02-项目与产品.md',
+    '00-使用指南/03-构建知识库.md',
+    '00-使用指南/04-首次产品问答.md',
+    '00-使用指南/05-单条应标.md',
+    '00-使用指南/06-Excel应标审核与导出.md',
+    '00-使用指南/07-单条翻译.md',
+    '00-使用指南/08-常见问题.md',
+    '01-产品与路线/PRD.md',
+    '01-产品与路线/计划书.md',
+    '02-架构与技术/01-Prompt.md',
+    '02-架构与技术/02-Skill.md',
+    '02-架构与技术/03-Tool.md',
+    '02-架构与技术/04-RAG.md',
+    '02-架构与技术/05-记忆管理.md',
+    '02-架构与技术/06-上下文管理.md',
+    '02-架构与技术/07-Harness.md',
+    '02-架构与技术/08-Agent Loop.md',
+    '02-架构与技术/参考资料/架构设计.md',
+    '02-架构与技术/参考资料/技术栈选型.md',
+)
 
 
 def section(text, title, replacement=''):
@@ -29,7 +53,7 @@ def section(text, title, replacement=''):
 
 PLAN_INTRO='''# SOC 投标助手当前计划与验收顺序
 
-本计划维护当前产品路线、交付条件与后续验收顺序；具体需求见 [PRD](PRD.md)，系统执行与持久化见 [架构设计](../02-架构与技术/架构设计.md)。路线中的目标不表示业务质量、性能或兼容性已经验收。软件可启动、合成流程完成和真实资料验证分别记录，不互相替代。
+本计划维护当前产品路线、交付条件与后续验收顺序；具体需求见 [PRD](PRD.md)，系统执行与持久化见 [架构设计](../02-架构与技术/参考资料/架构设计.md)。路线中的目标不表示业务质量、性能或兼容性已经验收。软件可启动、合成流程完成和真实资料验证分别记录，不互相替代。
 
 ## 1. 当前阶段与路线
 
@@ -75,7 +99,7 @@ PLAN_CHECKLIST='''### 6.1 能力交付清单
 
 PLAN_NEXT='''## 7. 专项归并与下一步
 
-导航与共享对话、输入区、业务命名、模型与审核布局、知识库创建及切分作为同一产品维护，页面规则见 [界面与交互设计](../03-界面与交互/界面与交互设计.md)，知识切分与版本规则见 [RAG 设计](../02-架构与技术/RAG设计.md)。不并列维护互相矛盾的旧实施方案。
+操作入口见 [使用指南](../00-使用指南/00-入门总览.md)，知识切分与版本规则见 [RAG 设计](../02-架构与技术/04-RAG.md)，固定集和统计口径见 [评测](../03-评测与观测/01-评测.md) 与 [观测](../03-评测与观测/02-观测.md)。
 
 优先完成完整输入的人工固定集和同口径业务评测，核对真实供应商、明确开启的外部观测同步、目标机安装与恢复边界。真实建库能执行只说明构建链可运行，尚不能宣布检索质量提高。界面风格调整不替代业务改进；新知识版本仍须使用者确认发布，整理文档不触发建库、发布或模型请求。
 '''
@@ -103,7 +127,7 @@ def edit_design(name,text):
         text=text.replace('页面切换/关闭不取消持久队列；机器或 worker 停止时不会继续执行。','页面切换不取消持久队列；使用图标启动时关闭最后一个 Laura 标签页后，刷新缓冲期结束将停止本地服务。机器或 Worker 停止时不会继续执行。')
     elif name.endswith('/计划书.md'):
         return edit_plan(text)
-    elif name.endswith('/RAG设计.md'):
+    elif name.endswith('/04-RAG.md'):
         text=text[text.index('**当前方案'):]
         text='# RAG 设计\n\n'+text
         text=section(text,'### 9.2 已保存的结构化基线')
@@ -182,10 +206,10 @@ def public_document(name,text,published):
         label,url=hit[1],hit[2]
         if url.startswith(('laura:','https://','http://','#')):
             return hit[0]
-        target=posixpath.normpath(posixpath.join(posixpath.dirname(name),url.split('#')[0]))
+        target=posixpath.normpath(posixpath.join(posixpath.dirname(name),unquote(url.split('#')[0])))
         if target in published or target.startswith('assets/guides/'):
             return hit[0]
-        if any(v in url for v in ('归档/','验收记录','问题记录','tests/','data/','04-模型与交付')):
+        if any(v in target for v in ('归档/','验收记录','问题记录','tests/','data/','03-评测与观测','04-界面与交互','05-模型与交付','06-质量与验收')):
             return ''
         if target.startswith('../backend/') or url.startswith('../../backend/') or url.startswith('../../frontend/') or url.startswith('../../scripts/') or url.startswith('../../config/') or url.startswith('../../Start') or url.startswith('../../README'):
             return label
@@ -194,7 +218,8 @@ def public_document(name,text,published):
     text=re.sub(r'（本版[^）]*）','',text)
     text=re.sub(r'(?:详细进度与验收|新增能力的实现与验证证据|验证范围|原生 Excel 视觉验收边界|具体实现和验证状态以|相关测试入口|追踪)(?:见|：)?\s*[。，；]','',text)
     text=re.sub(r'证据见\s*[。，；]','',text)
-    text=text.replace('完整交互以  为准','完整交互以 [界面与交互设计](../03-界面与交互/界面与交互设计.md) 为准')
+    guide = posixpath.relpath('00-使用指南/00-入门总览.md', posixpath.dirname(name))
+    text=text.replace('完整交互以  为准', f'完整交互见 [使用指南]({guide})')
     text=text.replace('| 下文源码链接 |','| 当前规则见对应设计章节 |')
     text=re.sub(r'(^\| 待验收 \|[^\n]*)\|\s*\|$',r'\1| 需独立人工样本和真实调用验收 |',text,flags=re.M)
     text=text.replace('历史“尚未调用主模型”及“全局默认 auto”已不代表现状。','')
@@ -209,11 +234,14 @@ def public_document(name,text,published):
 
 
 def source_documents(source,extra_names=()):
-    paths=[p for category in CATEGORIES for p in sorted((Path(source)/'doc'/category).glob('*.md'))]
-    if len(paths)!=14:
-        raise ValueError('公开原始文档必须完整包含 14 份当前文档')
-    names={p.relative_to(Path(source)/'doc').as_posix() for p in paths}|set(extra_names)|{'README.md'}
-    result={p.relative_to(Path(source)/'doc').as_posix():public_document(p.relative_to(Path(source)/'doc').as_posix(),p.read_text('utf-8'),names) for p in paths}
+    folder = (Path(source) / 'doc').resolve()
+    names = set(PUBLIC_SOURCE_DOCS) | set(extra_names) | {'README.md'}
+    result = {}
+    for name in PUBLIC_SOURCE_DOCS:
+        path = folder / name
+        if not path.is_file() or not path.resolve().is_relative_to(folder):
+            raise ValueError('缺少公开源文档或路径超出范围：' + name)
+        result[name] = public_document(name, path.read_text('utf-8'), names)
     model='00-使用指南/01-模型准备.md'
     result[model]=result[model].replace('## 2. 设为当前接口','''## 2. 设为当前接口与启用内网API
 

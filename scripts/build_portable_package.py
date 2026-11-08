@@ -32,7 +32,9 @@ def validate_source_names(names, approved_content=None):
                 or (name.startswith('config/') and not name.endswith('.example.yaml'))
                 or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'} and name not in approved_content)
                 or (name.startswith('doc/') and name not in {'doc/README.md','doc/catalog.json'}
-                    and parts[1] not in {'00-使用指南','01-产品与路线','02-架构与技术','03-界面与交互','assets'})
+                    and parts[1] not in {'00-使用指南','01-产品与路线','02-架构与技术','03-评测与观测','assets'})
+                or (name.startswith('doc/03-评测与观测/')
+                    and name not in {'doc/03-评测与观测/01-评测.md','doc/03-评测与观测/02-观测.md'})
                 or (name.startswith('doc/') and any(v in name for v in ('归档','上线修复记录','验收记录','问题记录','工具/')))
                 # Only this reviewed current roadmap is public; historical and
                 # implementation plans remain forbidden even if listed by mistake.
@@ -119,7 +121,7 @@ def write_update_sidecar(archive,*,version,source_commit,notes='',channel='test'
     if archive.name!='Laura-Portable-Windows-x64.zip':raise ValueError('Use the canonical portable archive filename')
     tag='v'+version
     payload={'schema_version':1,'channel':channel,'version':version,'tag':tag,
-             'url':'https://github.com/Laurence688/Bid-Agent/releases/download/'+tag+'/'+archive.name,
+             'url':'https://github.com/Laurence688/Bidding-Agent/releases/download/'+tag+'/'+archive.name,
              'size':archive.stat().st_size,'sha256':digest(archive),'source_commit':source_commit,'notes':notes}
     target=archive.parent/'laura-update.json'
     if target.exists():raise FileExistsError('Use a new sidecar output directory')

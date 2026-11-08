@@ -5,8 +5,36 @@ import json
 import shutil
 
 EXTRA_DOCS = {
-'03-界面与交互/界面与交互设计.md': '# 界面与交互说明\n\n顶部导航按工作中心、数据管理、效果评估、效率工具、文档中心和系统设置组织。当前项目决定会话、任务和知识范围；会话侧栏用于切换与管理对话，工作区保留必要草稿。\n\n首次创建项目若无产品，应通过可点击入口完成登记，回来后继续创建。表单错误应靠近输入，可关闭并随编辑清除；不能让一次失败长期占据所有页面。\n\n知识库采用“上传 → 切分 → 预览 → 向量化 → 发布”的显式流程。构建后台运行，通知显示进度，关闭通知不取消任务。项目回收站提供可恢复操作，运行任务存在时明确阻拦。\n\n模型设置区分接口草稿、已保存配置和当前生成接口。校验只使用保存值；联网授权单独明确保存，不随着填 Key 自动开启。文档中心提供目录、搜索、正文和来源跳转；公开文档只包含使用与现行设计说明。\n',
-'03-界面与交互/知识库来源类型与整篇保留策略设计.md': '# 知识来源类型与整篇保留\n\n来源类型帮助解释证据的用途，不能代替对原文、型号和条件的核对。产品说明、功能资料、参数资料与其他文档应按实际内容选择；“其他”不是免审来源。\n\nWord 与文字型 PDF 可以按规则切分，也可在内容较短且预算允许时整篇作为单片段保留。整篇策略减少上下文被切断的风险，但会增加检索结果与模型上下文长度，应在预览中确认字符量、定位和重复内容。\n\nExcel 使用明确的工作表、表头、行列与指标配置，不把整表任意拼接成没有位置的证据。切分规则改变会产生新版本，必须重新构建并发布；历史任务仍使用当时的知识版本。\n',
+    '03-评测与观测/01-评测.md': '''# 评测
+
+评测用固定案例检查 Laura 的结论、证据和交付内容。每条案例有稳定 ID。保存新版案例集会产生新的数据版本，人工标定的 Gold 与被测模型的输入分开。
+
+## 评分与对照
+
+- 分别记录成功、失败、取消和未执行。业务 UNKNOWN 表示证据不足或条件未决，执行失败单独计入。
+- 比较四态、错误肯定、Claim 覆盖、引用命中和参数。引用是否确实支持结论、英文是否可交付，还需人工核对。
+- 同模型对照使用同一组案例、知识版本和模型设置，按案例比较完整流程和基线流程。将调用次数、耗时和已知 Token 与质量结果分别列出。
+
+重评分读取已保存结果。固定集执行仍有运行记录读取缺口，当前不能据此报告已完成的业务基准或同模型对照结果。
+
+[Harness](../02-架构与技术/07-Harness.md) · [观测](02-观测.md)
+''',
+    '03-评测与观测/02-观测.md': '''# 观测
+
+观测记录作业进度、失败位置、结果来源、模型尝试和人工操作。定位问题时可先按项目、会话和运行筛选，再检查条款与节点的记录。
+
+## 指标口径
+
+- FC、PC、NC、UNKNOWN 是当前机器结论的分布。准确率需要人工标定的固定样本。
+- 任务墙钟时间、节点耗时和模型累计耗时分别展示。重试和补检计入相关尝试，缺失 Token 按未知处理。
+- 人工批注、批准和机器初始结果分别保存，便于比较修改前后和追溯来源。
+
+## 追踪与同步
+
+启用 LangSmith 记录后，SOC 条款与产品问答分别形成 Trace，SOC 节点与模型尝试形成相应的 Span。业务日志和统计在本机独立保存。LangSmith 默认关闭，外发由独立同步程序按显式配置执行。
+
+[评测](01-评测.md) · [Agent Loop](../02-架构与技术/08-Agent%20Loop.md)
+''',
 }
 
 
@@ -63,6 +91,34 @@ def publish_readme_previews(destination):
 
 def publish_branding(source, destination):
     source,destination=Path(source),Path(destination)
+    # Publish the explicitly approved feedback address, without local-only Zmail wording.
+    contact=destination/'frontend/src/components/HomeContact.tsx'
+    contact.parent.mkdir(parents=True,exist_ok=True)
+    contact.write_text('''import {useState} from 'react';
+import {Button,Modal,Typography} from 'antd';
+import {MailOutlined} from '@ant-design/icons';
+import './home-contact.css';
+
+const email='li.zhichao5@zte.com.cn';
+
+export default function HomeContact(){
+ const [open,setOpen]=useState(false);
+ return <div className="home-contact">
+  <Button type="link" icon={<MailOutlined aria-hidden="true"/>} onClick={()=>setOpen(true)}>
+   <span>反馈与建议</span><span className="home-contact-address">{email}</span>
+  </Button>
+  <Modal open={open} title="反馈与建议" onCancel={()=>setOpen(false)} footer={<Button type="primary" onClick={()=>setOpen(false)}>知道了</Button>}>
+   <div className="home-contact-details">
+    <p>如有意见或建议，欢迎发送邮件至以下邮箱。感谢你的反馈。</p>
+    <Typography.Text copyable={{text:email,tooltips:['复制邮箱','已复制']}}><a href={`mailto:${email}`}>{email}</a></Typography.Text>
+    <p><a href="https://github.com/Laurence688/Bidding-Agent/issues" target="_blank" rel="noopener noreferrer">也可以在 GitHub 提交反馈与建议</a></p>
+   </div>
+  </Modal>
+ </div>;
+}
+''','utf-8',newline='\n')
+    style=destination/'frontend/src/components/home-contact.css'
+    shutil.copyfile(source/'frontend/src/components/home-contact.css',style)
     name='frontend/public/laura-brand.png'
     target=destination/name;target.parent.mkdir(parents=True,exist_ok=True)
     shutil.copyfile(source/name,target)
@@ -77,20 +133,20 @@ def publish_branding(source, destination):
 
 def publish(source, destination, guide_assets=None):
     import re
-    from public_documentation import source_documents, VERSION
+    from public_documentation import GUIDE_CAPTURE_VERSION, VERSION, source_documents
     source,destination=Path(source),Path(destination)
     guide_assets=Path(guide_assets) if guide_assets is not None else source/'.cache/public-guides-v04'
     if not (guide_assets/'manifest.json').is_file():
-        raise ValueError('缺少新版合成截图登记文件，请先准备 '+VERSION+' 使用指南截图')
+        raise ValueError('缺少已审核合成截图登记文件，请先准备 '+GUIDE_CAPTURE_VERSION+' 使用指南截图')
     capture=json.loads((guide_assets/'manifest.json').read_text('utf-8'))
-    if capture.get('publication_version')!=VERSION:
+    if capture.get('publication_version')!=GUIDE_CAPTURE_VERSION:
         raise ValueError('截图版本不匹配，禁止回退复制旧截图')
     folder=destination/'doc';folder.mkdir(parents=True,exist_ok=True)
     catalog=json.loads((source/'doc/catalog.json').read_text('utf-8'))
     metadata={item['path']:item for item in catalog}
     extras=dict(EXTRA_DOCS)
     documents={**source_documents(source,extras),**{name:text.replace('公司 API','内网API') for name,text in extras.items()}}
-    documents={'README.md':'# Laura 文档中心\n\n出版版本：'+VERSION+'\n\n完整使用指南与当前产品、路线、架构及技术说明。\n\n'+'\n'.join('- ['+name.split('/')[-1][:-3]+']('+name+')' for name in documents)+'\n\n首页视频和配图为合成演示，不代表真实业务结果或模型质量。\n',**documents}
+    documents={'README.md':'# Laura 文档中心\n\n出版版本：'+VERSION+'\n\n完整使用指南、产品路线、架构与技术，以及评测和观测说明。\n\n'+'\n'.join('- ['+name.split('/')[-1][:-3]+']('+name.replace(' ', '%20')+')' for name in documents)+'\n\n首页视频和配图为合成演示，不代表真实业务结果或模型质量。\n',**documents}
     approved=publish_branding(source,destination)
     entries=[]
     for index,(name,text) in enumerate(documents.items()):
